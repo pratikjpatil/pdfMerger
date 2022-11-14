@@ -11,8 +11,8 @@ app.get('/',(req,res)=>{
     res.sendFile(__dirname+"/temp/index.html");
 })
 app.post('/merge', upload.array('pdfs', 12), async (req, res, next)=> {
-    await mergePdfs(__dirname+"/"+req.files[0].path,__dirname+"/"+req.files[1].path);
-    res.redirect("http://localhost:2000/static/merged.pdf");
+   let d = await mergePdfs(__dirname+"/"+req.files[0].path,__dirname+"/"+req.files[1].path);
+    res.redirect(`http://localhost:2000/static/${d}.pdf`);
 })
 
 app.listen(2000, ()=>{
