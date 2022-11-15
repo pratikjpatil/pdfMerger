@@ -10,11 +10,18 @@ app.use('/static', express.static('public'));
 app.get('/',(req,res)=>{
     res.sendFile(__dirname+"/temp/index.html");
 })
+let d;
 app.post('/merge', upload.array('pdfs', 12), async (req, res, next)=> {
-   let d = await mergePdfs(__dirname+"/"+req.files[0].path,__dirname+"/"+req.files[1].path);
-    res.redirect(`http://localhost:2000/static/${d}.pdf`);
+   d = await mergePdfs(__dirname+"/"+req.files[0].path,__dirname+"/"+req.files[1].path);
+    res.redirect('/result');
 })
 
-app.listen(2000, ()=>{
-    console.log("Server started on port 2000");
+app.get('/result',(req,res)=>{
+    res.sendFile(__dirname+`/public/${d}.pdf`);
 })
+
+const PORT = process.env.PORT|| 5000;
+
+app.listen(PORT, ()=>{
+    console.log(`Server started on port ${PORT}`);
+});
