@@ -1,0 +1,118 @@
+import React, { useEffect, useState } from 'react';
+import { Box, IconButton, Typography, CircularProgress, Alert } from "@mui/material";
+import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+
+// 1. Import `react-pdf` components
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+
+// 2. Point to the latest worker from a CDN
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+
+const PdfViewer = ({ pdfData }) => {
+    // State for the viewer
+    const [pdfUrl, setPdfUrl] = useState(null);
+    const [numPages, setNumPages] = useState(null);
+    const [pageNumber, setPageNumber] = useState(1);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // 3. Keep your useEffect to process base64 data, with improvements
+    useEffect(() => {
+        let objectUrl = null;
+        try {
+            const byteCharacters = atob(pdfData);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            
+            objectUrl = URL.createObjectURL(blob);
+            setPdfUrl(objectUrl);
+        } catch (e) {
+            setError('Failed to load PDF data.');
+            console.error(e);
+        } finally {
+            setIsLoading(false);
+        }
+        
+        // Cleanup function to prevent memory leaks
+        return () => {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+            }
+        };
+    }, [pdfData]);
+
+    function onDocumentLoadSuccess({ numPages: nextNumPages }) {
+        setNumPages(nextNumPages);
+    }
+
+    if (isLoading) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" height="62vh">
+                <CircularProgress />
+            </Box>
+        );
+    }
+    
+    if (error) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" height="62vh">
+                <Alert severity="error">{error}</Alert>
+            </Box>
+        );
+    }
+    
+    return (
+        <Box 
+            sx={{ 
+                width: '100%', 
+                height: '62vh', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                border: '1px solid #e0e0e0',
+                borderRadius: '4px'
+            }}
+        >
+            {/* 4. Implement custom controls using MUI */}
+            <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                p={1}
+                sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.100' }}
+            >
+                <IconButton onClick={() => setPageNumber(p => Math.max(1, p - 1))} disabled={pageNumber <= 1}>
+                    <NavigateBeforeIcon />
+                </IconButton>
+                <Typography variant="body2" mx={2}>
+                    Page {pageNumber} of {numPages || '--'}
+                </Typography>
+                <IconButton onClick={() => setPageNumber(p => Math.min(numPages, p + 1))} disabled={!numPages || pageNumber >= numPages}>
+                    <NavigateNextIcon />
+                </IconButton>
+            </Box>
+
+            {/* 5. Implement the Document viewer */}
+            <Box sx={{ flexGrow: 1, overflow: 'auto', display: 'flex', justifyContent: 'center', p: 1, bgcolor: 'grey.200' }}>
+                {pdfUrl && (
+                    <Document
+                        file={pdfUrl}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                        onLoadError={console.error}
+                    >
+                        <Page pageNumber={pageNumber} />
+                    </Document>
+                )}
+            </Box>
+        </Box>
+    );
+};
+
+export default PdfViewer;
+
