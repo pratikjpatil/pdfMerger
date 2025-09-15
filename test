@@ -1,50 +1,14 @@
-package org.example; // Make sure this package name matches your project's package
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                      http://maven.apache.org/xsd/settings-1.0.0.xsd">
 
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
+  <proxies>
+    <proxy>
+      <id>my-company-proxy</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <host>your-proxy-host</host> <port>your-proxy-port</port> </proxy>
+  </proxies>
 
-import java.util.Arrays;
-import java.util.List;
-
-public class Main { // The class name must match the file name "Main.java"
-
-    public static void main(String[] args) {
-        // Make sure your HDFS services are running before you execute this!
-        
-        // Step 1: Initialize SparkSession to run locally
-        SparkSession spark = SparkSession.builder()
-                .appName("Java HDFS Spark Test")
-                .master("local[*]")
-                .getOrCreate();
-
-        System.out.println("SparkSession initialized successfully.");
-
-        // Step 2: Define the HDFS path
-        // Change "localhost:9000" if your HDFS NameNode runs on a different address.
-        String hdfsPath = "hdfs://localhost:9000/user/spark_test/test_data.txt";
-
-        // Step 3: Create sample data and write it to HDFS
-        System.out.println("--> Writing data to HDFS at: " + hdfsPath);
-        List<String> data = Arrays.asList("hello world", "spark hdfs test", "hello spark");
-        Dataset<String> df = spark.createDataset(data, org.apache.spark.sql.Encoders.STRING());
-        df.write().mode("overwrite").text(hdfsPath);
-        System.out.println("--> Successfully wrote data to HDFS.");
-
-        // Step 4: Read the data back from HDFS
-        System.out.println("--> Reading data from HDFS at: " + hdfsPath);
-        Dataset<String> textFile = spark.read().textFile(hdfsPath);
-
-        // Step 5: Perform a word count
-        Dataset<Row> wordCounts = textFile
-                .flatMap(s -> Arrays.asList(s.split(" ")).iterator(), org.apache.spark.sql.Encoders.STRING())
-                .groupBy("value")
-                .count();
-
-        System.out.println("--> Word count result:");
-        wordCounts.show();
-
-        // Step 6: Stop the SparkSession
-        spark.stop();
-    }
-}
+</settings>
