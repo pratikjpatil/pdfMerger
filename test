@@ -1,14 +1,203 @@
-<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                      http://maven.apache.org/xsd/settings-1.0.0.xsd">
+import React, { useState } from 'react';
+import { Search, ShoppingCart, User, Menu, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
-  <proxies>
-    <proxy>
-      <id>my-company-proxy</id>
-      <active>true</active>
-      <protocol>http</protocol>
-      <host>your-proxy-host</host> <port>your-proxy-port</port> </proxy>
-  </proxies>
+const DoplantInterface = () => {
+  const [currentSlide, setCurrentSlide] = useState(0);
 
-</settings>
+  const plants = [
+    {
+      name: "Aloevera",
+      price: "$300",
+      description: "Aloe Vera is easy to grow, requires minimal maintenance.",
+      image: "🌿"
+    },
+    {
+      name: "Golden Barrel Cactus",
+      price: "$800",
+      description: "It thrives in full sun and well-draining soil. choice for garden.",
+      image: "🌵"
+    },
+    {
+      name: "Monstera Deliciosa",
+      price: "$400",
+      description: "Excellent decorative plant but also helps purify the air.",
+      image: "🍃"
+    },
+    {
+      name: "Sansevieria",
+      price: "$500",
+      description: "Absorb toxins and improve indoor air quality. CO₂ → oxygen",
+      image: "🌱"
+    }
+  ];
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % plants.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + plants.length) % plants.length);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-600 text-white">
+      {/* Header */}
+      <header className="flex items-center justify-between p-6">
+        <div className="flex items-center space-x-2">
+          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+            <span className="text-emerald-700 font-bold text-sm">D</span>
+          </div>
+          <span className="text-xl font-semibold">Doplant</span>
+        </div>
+        
+        <div className="relative flex-1 max-w-md mx-8">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Find your plant..."
+            className="w-full pl-10 pr-4 py-2 rounded-full bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          />
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <button className="p-2 hover:bg-emerald-600 rounded-full transition-colors">
+            <ShoppingCart className="w-6 h-6" />
+          </button>
+          <button className="p-2 hover:bg-emerald-600 rounded-full transition-colors">
+            <User className="w-6 h-6" />
+          </button>
+          <button className="p-2 hover:bg-emerald-600 rounded-full transition-colors">
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex items-center px-6 py-8">
+        {/* Left Content */}
+        <div className="flex-1 max-w-lg">
+          <h1 className="text-6xl font-bold mb-4">Aloevera</h1>
+          
+          <div className="flex items-center space-x-4 mb-6">
+            <span className="text-3xl font-bold">$300</span>
+            <div className="flex items-center text-sm">
+              <span className="mr-2">👥</span>
+              <span>200 people have planted this</span>
+            </div>
+          </div>
+
+          <p className="text-lg mb-8 leading-relaxed max-w-md">
+            Aloe Vera is a popular succulent plant known for its thick, fleshy 
+            leaves filled with a soothing gel. It is widely used for skincare, hair 
+            care, and medicinal purposes due to its hydrating healing properties.
+          </p>
+
+          <div className="flex items-center space-x-4 mb-8">
+            <div className="flex items-center space-x-2 bg-white bg-opacity-20 rounded-full px-4 py-2">
+              <button className="w-8 h-8 rounded-full bg-white bg-opacity-30 flex items-center justify-center">
+                <span className="text-sm">-</span>
+              </button>
+              <span className="px-4">1</span>
+              <button className="w-8 h-8 rounded-full bg-white bg-opacity-30 flex items-center justify-center">
+                <span className="text-sm">+</span>
+              </button>
+            </div>
+            <button className="bg-emerald-500 hover:bg-emerald-400 px-6 py-3 rounded-full font-semibold transition-colors">
+              Add to Cart
+            </button>
+          </div>
+
+          <button className="flex items-center text-sm hover:underline">
+            Know More 
+            <ChevronRight className="w-4 h-4 ml-1" />
+          </button>
+        </div>
+
+        {/* Right Content - Plant Image with Info Cards */}
+        <div className="flex-1 relative flex justify-center items-center">
+          {/* Main Plant Pot */}
+          <div className="relative">
+            <div className="w-64 h-80 bg-gradient-to-b from-emerald-400 to-emerald-500 rounded-full relative overflow-hidden">
+              {/* Aloe Plant */}
+              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+                <div className="text-8xl">🪴</div>
+              </div>
+              {/* Pot highlight */}
+              <div className="absolute bottom-0 w-full h-24 bg-gradient-to-t from-emerald-600 to-transparent rounded-full"></div>
+            </div>
+          </div>
+
+          {/* Info Cards */}
+          <div className="absolute top-8 right-8 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-2">
+            <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+            <span className="text-sm">Atmosphere: Sunny</span>
+          </div>
+
+          <div className="absolute right-16 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-2">
+            <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+            <span className="text-sm">Water Level: 450ml</span>
+          </div>
+
+          <div className="absolute left-8 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-2">
+            <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+            <span className="text-sm">Humidity: 10%</span>
+          </div>
+
+          <div className="absolute bottom-16 right-1/4 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-2">
+            <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
+            <span className="text-sm">Size: Small</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Plant Cards Slider */}
+      <div className="px-6 pb-8">
+        <div className="relative">
+          <button 
+            onClick={prevSlide}
+            className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          
+          <div className="flex space-x-4 overflow-hidden px-12">
+            {plants.map((plant, index) => (
+              <div 
+                key={index}
+                className={`min-w-72 bg-white bg-opacity-15 backdrop-blur-sm rounded-2xl p-6 transition-all duration-300 ${
+                  index === 0 ? 'bg-opacity-25' : ''
+                }`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">{plant.name}</h3>
+                    <p className="text-sm text-white text-opacity-80 mb-4">
+                      {plant.description}
+                    </p>
+                  </div>
+                  <div className="text-3xl ml-4">{plant.image}</div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-2xl font-bold">{plant.price}</span>
+                  <button className="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors">
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <button 
+            onClick={nextSlide}
+            className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DoplantInterface;
