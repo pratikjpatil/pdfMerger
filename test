@@ -40,164 +40,497 @@ const DoplantInterface = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-600 text-white">
+    <div style={styles.container}>
       {/* Header */}
-      <header className="flex items-center justify-between p-6">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-            <span className="text-emerald-700 font-bold text-sm">D</span>
+      <header style={styles.header}>
+        <div style={styles.logo}>
+          <div style={styles.logoIcon}>
+            <span style={styles.logoText}>D</span>
           </div>
-          <span className="text-xl font-semibold">Doplant</span>
+          <span style={styles.logoTitle}>Doplant</span>
         </div>
         
-        <div className="relative flex-1 max-w-md mx-8">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div style={styles.searchContainer}>
+          <Search style={styles.searchIcon} />
           <input
             type="text"
             placeholder="Find your plant..."
-            className="w-full pl-10 pr-4 py-2 rounded-full bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+            style={styles.searchInput}
           />
         </div>
 
-        <div className="flex items-center space-x-4">
-          <button className="p-2 hover:bg-emerald-600 rounded-full transition-colors">
-            <ShoppingCart className="w-6 h-6" />
+        <div style={styles.navIcons}>
+          <button style={styles.iconButton}>
+            <ShoppingCart size={20} />
           </button>
-          <button className="p-2 hover:bg-emerald-600 rounded-full transition-colors">
-            <User className="w-6 h-6" />
+          <button style={styles.iconButton}>
+            <User size={20} />
           </button>
-          <button className="p-2 hover:bg-emerald-600 rounded-full transition-colors">
-            <Menu className="w-6 h-6" />
+          <button style={styles.iconButton}>
+            <Menu size={20} />
           </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="flex items-center px-6 py-8">
+      <div style={styles.mainContent}>
         {/* Left Content */}
-        <div className="flex-1 max-w-lg">
-          <h1 className="text-6xl font-bold mb-4">Aloevera</h1>
+        <div style={styles.leftContent}>
+          <h1 style={styles.mainTitle}>Aloevera</h1>
           
-          <div className="flex items-center space-x-4 mb-6">
-            <span className="text-3xl font-bold">$300</span>
-            <div className="flex items-center text-sm">
-              <span className="mr-2">👥</span>
-              <span>200 people have planted this</span>
+          <div style={styles.priceSection}>
+            <span style={styles.price}>$300</span>
+            <div style={styles.socialProof}>
+              <span style={styles.peopleIcon}>👥</span>
+              <span style={styles.peopleText}>200 people have planted this</span>
             </div>
           </div>
 
-          <p className="text-lg mb-8 leading-relaxed max-w-md">
+          <p style={styles.description}>
             Aloe Vera is a popular succulent plant known for its thick, fleshy 
             leaves filled with a soothing gel. It is widely used for skincare, hair 
             care, and medicinal purposes due to its hydrating healing properties.
           </p>
 
-          <div className="flex items-center space-x-4 mb-8">
-            <div className="flex items-center space-x-2 bg-white bg-opacity-20 rounded-full px-4 py-2">
-              <button className="w-8 h-8 rounded-full bg-white bg-opacity-30 flex items-center justify-center">
-                <span className="text-sm">-</span>
-              </button>
-              <span className="px-4">1</span>
-              <button className="w-8 h-8 rounded-full bg-white bg-opacity-30 flex items-center justify-center">
-                <span className="text-sm">+</span>
-              </button>
+          <div style={styles.actionSection}>
+            <div style={styles.quantitySelector}>
+              <button style={styles.quantityButton}>-</button>
+              <span style={styles.quantity}>1</span>
+              <button style={styles.quantityButton}>+</button>
             </div>
-            <button className="bg-emerald-500 hover:bg-emerald-400 px-6 py-3 rounded-full font-semibold transition-colors">
+            <button style={styles.addToCartButton}>
               Add to Cart
             </button>
           </div>
 
-          <button className="flex items-center text-sm hover:underline">
+          <button style={styles.knowMoreButton}>
             Know More 
-            <ChevronRight className="w-4 h-4 ml-1" />
+            <ChevronRight size={16} style={{marginLeft: '4px'}} />
           </button>
         </div>
 
         {/* Right Content - Plant Image with Info Cards */}
-        <div className="flex-1 relative flex justify-center items-center">
+        <div style={styles.rightContent}>
           {/* Main Plant Pot */}
-          <div className="relative">
-            <div className="w-64 h-80 bg-gradient-to-b from-emerald-400 to-emerald-500 rounded-full relative overflow-hidden">
-              {/* Aloe Plant */}
-              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-                <div className="text-8xl">🪴</div>
-              </div>
-              {/* Pot highlight */}
-              <div className="absolute bottom-0 w-full h-24 bg-gradient-to-t from-emerald-600 to-transparent rounded-full"></div>
+          <div style={styles.plantContainer}>
+            <div style={styles.plantPot}>
+              <div style={styles.aloeVera}>🪴</div>
+              <div style={styles.potHighlight}></div>
             </div>
           </div>
 
           {/* Info Cards */}
-          <div className="absolute top-8 right-8 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-2">
-            <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
-            <span className="text-sm">Atmosphere: Sunny</span>
+          <div style={{...styles.infoCard, ...styles.atmosphereCard}}>
+            <div style={{...styles.infoDot, backgroundColor: '#FCD34D'}}></div>
+            <span style={styles.infoText}>Atmosphere: Sunny</span>
           </div>
 
-          <div className="absolute right-16 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-2">
-            <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-            <span className="text-sm">Water Level: 450ml</span>
+          <div style={{...styles.infoCard, ...styles.waterCard}}>
+            <div style={{...styles.infoDot, backgroundColor: '#60A5FA'}}></div>
+            <span style={styles.infoText}>Water Level: 450ml</span>
           </div>
 
-          <div className="absolute left-8 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-2">
-            <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-            <span className="text-sm">Humidity: 10%</span>
+          <div style={{...styles.infoCard, ...styles.humidityCard}}>
+            <div style={{...styles.infoDot, backgroundColor: '#34D399'}}></div>
+            <span style={styles.infoText}>Humidity: 10%</span>
           </div>
 
-          <div className="absolute bottom-16 right-1/4 bg-white bg-opacity-20 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-2">
-            <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
-            <span className="text-sm">Size: Small</span>
+          <div style={{...styles.infoCard, ...styles.sizeCard}}>
+            <div style={{...styles.infoDot, backgroundColor: '#A78BFA'}}></div>
+            <span style={styles.infoText}>Size: Small</span>
           </div>
         </div>
       </div>
 
       {/* Bottom Plant Cards Slider */}
-      <div className="px-6 pb-8">
-        <div className="relative">
-          <button 
-            onClick={prevSlide}
-            className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
+      <div style={styles.sliderSection}>
+        <div style={styles.sliderContainer}>
+          <button onClick={prevSlide} style={styles.sliderButton}>
+            <ChevronLeft size={20} />
           </button>
           
-          <div className="flex space-x-4 overflow-hidden px-12">
+          <div style={styles.plantsGrid}>
             {plants.map((plant, index) => (
-              <div 
-                key={index}
-                className={`min-w-72 bg-white bg-opacity-15 backdrop-blur-sm rounded-2xl p-6 transition-all duration-300 ${
-                  index === 0 ? 'bg-opacity-25' : ''
-                }`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">{plant.name}</h3>
-                    <p className="text-sm text-white text-opacity-80 mb-4">
+              <div key={index} style={index === 0 ? {...styles.plantCard, ...styles.plantCardActive} : styles.plantCard}>
+                <div style={styles.plantCardContent}>
+                  <div style={styles.plantCardInfo}>
+                    <h3 style={styles.plantCardTitle}>{plant.name}</h3>
+                    <p style={styles.plantCardDescription}>
                       {plant.description}
                     </p>
                   </div>
-                  <div className="text-3xl ml-4">{plant.image}</div>
+                  <div style={styles.plantEmoji}>{plant.image}</div>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold">{plant.price}</span>
-                  <button className="bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors">
-                    <Plus className="w-5 h-5" />
+                <div style={styles.plantCardFooter}>
+                  <span style={styles.plantPrice}>{plant.price}</span>
+                  <button style={styles.addButton}>
+                    <Plus size={20} />
                   </button>
                 </div>
               </div>
             ))}
           </div>
           
-          <button 
-            onClick={nextSlide}
-            className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full p-2 transition-colors"
-          >
-            <ChevronRight className="w-5 h-5" />
+          <button onClick={nextSlide} style={styles.sliderButton}>
+            <ChevronRight size={20} />
           </button>
         </div>
       </div>
     </div>
   );
+};
+
+const styles = {
+  container: {
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #065f46 0%, #047857 35%, #059669 100%)',
+    color: 'white',
+    fontFamily: 'system-ui, -apple-system, sans-serif'
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '24px',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backdropFilter: 'blur(10px)'
+  },
+  logo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  logoIcon: {
+    width: '32px',
+    height: '32px',
+    backgroundColor: '#ffffff',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  logoText: {
+    color: '#047857',
+    fontWeight: 'bold',
+    fontSize: '16px'
+  },
+  logoTitle: {
+    fontSize: '20px',
+    fontWeight: '600',
+    color: '#ffffff'
+  },
+  searchContainer: {
+    position: 'relative',
+    flex: 1,
+    maxWidth: '400px',
+    margin: '0 32px'
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: '12px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '16px',
+    height: '16px',
+    color: '#9CA3AF'
+  },
+  searchInput: {
+    width: '100%',
+    paddingLeft: '40px',
+    paddingRight: '16px',
+    paddingTop: '12px',
+    paddingBottom: '12px',
+    borderRadius: '25px',
+    backgroundColor: '#ffffff',
+    color: '#1F2937',
+    border: 'none',
+    fontSize: '14px',
+    outline: 'none',
+    '::placeholder': {
+      color: '#9CA3AF'
+    }
+  },
+  navIcons: {
+    display: 'flex',
+    gap: '8px'
+  },
+  iconButton: {
+    padding: '10px',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    border: 'none',
+    borderRadius: '50%',
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'background-color 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  mainContent: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '32px 24px',
+    gap: '48px'
+  },
+  leftContent: {
+    flex: 1,
+    maxWidth: '500px'
+  },
+  mainTitle: {
+    fontSize: '64px',
+    fontWeight: 'bold',
+    marginBottom: '24px',
+    color: '#ffffff',
+    lineHeight: '1.1'
+  },
+  priceSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '24px',
+    marginBottom: '32px'
+  },
+  price: {
+    fontSize: '36px',
+    fontWeight: 'bold',
+    color: '#ffffff'
+  },
+  socialProof: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '14px',
+    color: '#D1FAE5'
+  },
+  peopleIcon: {
+    marginRight: '8px'
+  },
+  peopleText: {
+    color: '#D1FAE5'
+  },
+  description: {
+    fontSize: '18px',
+    lineHeight: '1.6',
+    marginBottom: '32px',
+    maxWidth: '420px',
+    color: '#E6FFFA'
+  },
+  actionSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    marginBottom: '32px'
+  },
+  quantitySelector: {
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: '25px',
+    padding: '8px 16px',
+    gap: '16px'
+  },
+  quantityButton: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    border: 'none',
+    color: 'white',
+    cursor: 'pointer',
+    fontSize: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color 0.3s ease'
+  },
+  quantity: {
+    padding: '0 16px',
+    fontSize: '16px',
+    fontWeight: '500',
+    color: 'white'
+  },
+  addToCartButton: {
+    backgroundColor: '#10B981',
+    color: 'white',
+    border: 'none',
+    padding: '12px 24px',
+    borderRadius: '25px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.3s ease'
+  },
+  knowMoreButton: {
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    border: 'none',
+    color: '#D1FAE5',
+    fontSize: '14px',
+    cursor: 'pointer',
+    textDecoration: 'underline'
+  },
+  rightContent: {
+    flex: 1,
+    position: 'relative',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '400px'
+  },
+  plantContainer: {
+    position: 'relative'
+  },
+  plantPot: {
+    width: '250px',
+    height: '320px',
+    background: 'linear-gradient(180deg, #34D399 0%, #10B981 100%)',
+    borderRadius: '50%',
+    position: 'relative',
+    overflow: 'hidden',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)'
+  },
+  aloeVera: {
+    position: 'absolute',
+    bottom: '32px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    fontSize: '80px'
+  },
+  potHighlight: {
+    position: 'absolute',
+    bottom: '0',
+    width: '100%',
+    height: '96px',
+    background: 'linear-gradient(to top, #047857, transparent)',
+    borderRadius: '50%'
+  },
+  infoCard: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+  },
+  atmosphereCard: {
+    top: '32px',
+    right: '32px'
+  },
+  waterCard: {
+    right: '64px',
+    top: '50%',
+    transform: 'translateY(-50%)'
+  },
+  humidityCard: {
+    left: '32px',
+    top: '50%',
+    transform: 'translateY(-50%)'
+  },
+  sizeCard: {
+    bottom: '64px',
+    right: '25%'
+  },
+  infoDot: {
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%'
+  },
+  infoText: {
+    fontSize: '14px',
+    color: 'white',
+    fontWeight: '500'
+  },
+  sliderSection: {
+    padding: '0 24px 32px'
+  },
+  sliderContainer: {
+    position: 'relative'
+  },
+  sliderButton: {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    zIndex: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    border: 'none',
+    borderRadius: '50%',
+    padding: '12px',
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'background-color 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  plantsGrid: {
+    display: 'flex',
+    gap: '16px',
+    overflow: 'hidden',
+    padding: '0 48px'
+  },
+  plantCard: {
+    minWidth: '280px',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '20px',
+    padding: '24px',
+    transition: 'all 0.3s ease',
+    border: '1px solid rgba(255, 255, 255, 0.1)'
+  },
+  plantCardActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    transform: 'scale(1.02)'
+  },
+  plantCardContent: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: '20px'
+  },
+  plantCardInfo: {
+    flex: 1
+  },
+  plantCardTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    marginBottom: '12px',
+    color: '#ffffff'
+  },
+  plantCardDescription: {
+    fontSize: '14px',
+    color: '#D1FAE5',
+    lineHeight: '1.4',
+    marginBottom: '0'
+  },
+  plantEmoji: {
+    fontSize: '36px',
+    marginLeft: '16px'
+  },
+  plantCardFooter: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  plantPrice: {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#ffffff'
+  },
+  addButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    border: 'none',
+    borderRadius: '50%',
+    padding: '10px',
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'background-color 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
 };
 
 export default DoplantInterface;
