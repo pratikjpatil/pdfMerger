@@ -1,0 +1,574 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Typography, Paper, Container } from '@mui/material';
+
+// Fireworks component
+const Firework = ({ x, y, color, onComplete }) => {
+  const [particles, setParticles] = useState([]);
+  const animationRef = useRef();
+
+  useEffect(() => {
+    // Create initial particles
+    const initialParticles = Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8,
+      life: 1,
+      decay: 0.02,
+      color,
+      size: Math.random() * 3 + 2,
+    }));
+    
+    setParticles(initialParticles);
+
+    const animate = () => {
+      setParticles(prev => {
+        const updated = prev.map(particle => ({
+          ...particle,
+          x: particle.x + particle.vx,
+          y: particle.y + particle.vy,
+          vy: particle.vy + 0.1, // gravity
+          life: particle.life - particle.decay,
+          size: particle.size * 0.98,
+        })).filter(particle => particle.life > 0);
+
+        if (updated.length === 0) {
+          onComplete();
+          return [];
+        }
+
+        return updated;
+      });
+
+      if (particles.some(p => p.life > 0)) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [x, y, color, onComplete]);
+
+  return (
+    <>
+      {particles.map(particle => (
+        <div
+          key={particle.id}
+          style={{
+            position: 'absolute',
+            left: particle.x,
+            top: particle.y,
+            width: particle.size,
+            height: particle.size,
+            backgroundColor: particle.color,
+            borderRadius: '50%',
+            opacity: particle.life,
+            pointerEvents: 'none',
+            boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
+          }}
+        />
+      ))}
+    </>
+  );
+};
+
+// Ribbon component
+const Ribbon = ({ side, onComplete }) => {
+  const [ribbons, setRibbons] = useState([]);
+
+  useEffect(() => {
+    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a55eea'];
+    const initialRibbons = Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      x: side === 'left' ? -50 : window.innerWidth + 50,
+      y: Math.random() * window.innerHeight,
+      vx: side === 'left' ? Math.random() * 3 + 2 : -(Math.random() * 3 + 2),
+      vy: Math.random() * 2 - 1,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      width: Math.random() * 8 + 4,
+      height: Math.random() * 30 + 20,
+      rotation: Math.random() * 360,
+      rotationSpeed: (Math.random() - 0.5) * 10,
+    }));
+
+    setRibbons(initialRibbons);
+
+    const animate = () => {
+      setRibbons(prev => {
+        const updated = prev.map(ribbon => ({
+          ...ribbon,
+          x: ribbon.x + ribbon.vx,
+          y: ribbon.y + ribbon.vy,
+          vy: ribbon.vy + 0.1,
+          rotation: ribbon.rotation + ribbon.rotationSpeed,
+        })).filter(ribbon => 
+          ribbon.y < window.innerHeight + 100 && 
+          ribbon.x > -100 && 
+          ribbon.x < window.innerWidth + 100
+        );
+
+        if (updated.length === 0) {
+          setTimeout(onComplete, 500);
+          return [];
+        }
+
+        return updated;
+      });
+    };
+
+    const interval = setInterval(animate, 16);
+    return () => clearInterval(interval);
+  }, [side, onComplete]);
+
+  return (
+    <>
+      {ribbons.map(ribbon => (
+        <div
+          key={ribbon.id}
+          style={{
+            position: 'absolute',
+            left: ribbon.x,
+            top: ribbon.y,
+            width: ribbon.width,
+            height: ribbon.height,
+            backgroundColor: ribbon.color,
+            transform: `rotate(${ribbon.rotation}deg)`,
+            pointerEvents: 'none',
+            zIndex: 1000,
+          }}
+        />
+      ))}
+    </>
+  );
+};
+
+// Main countdown component
+export default function DeploymentCountdown({ liveStatus = null }) {
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [showFireworks, setShowFireworks] = useState(false);
+  const [fireworks, setFireworks] = useState([]);
+  const [showRibbons, setShowRibbons] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+
+  // Parse the live status from your JSON structure
+  useEffect(() => {
+    if (!liveStatus) {
+      // Demo data for testing - replace with your actual liveStatus prop
+      const demoLiveStatus = {
+        LIVE_DATE: "2024-09-18 16:30:00",
+        LIVE_TODISPLAY: "Balance Sheet will be live in ",
+        LIVE_STARTDATE: "2024-09-18 16:25:00"
+      };
+      
+      const targetDate = new Date(demoLiveStatus.LIVE_DATE);
+      const startDate = new Date(demoLiveStatus.LIVE_STARTDATE);
+      const now = new Date();
+
+      if (now >= targetDate) {
+        setIsLive(true);
+        return;
+      }
+
+      if (now >= startDate) {
+        const difference = targetDate.getTime() - now.getTime();
+        setTimeLeft(Math.max(0, difference));
+      }
+    } else {
+      const targetDate = new Date(liveStatus.LIVE_DATE);
+      const startDate = new Date(liveStatus.LIVE_STARTDATE);
+      const now = new Date();
+
+      if (now >= targetDate) {
+        setIsLive(true);
+        return;
+      }
+
+      if (now >= startDate) {
+        const difference = targetDate.getTime() - now.getTime();
+        setTimeLeft(Math.max(0, difference));
+      }
+    }
+  }, [liveStatus]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1000) {
+          setShowFireworks(true);
+          setShowRibbons(true);
+          setIsLive(true);
+          return 0;
+        }
+        return prev - 1000;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  // Create fireworks when countdown ends
+  useEffect(() => {
+    if (showFireworks) {
+      const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a55eea', '#26de81'];
+      
+      const createFirework = () => {
+        const newFirework = {
+          id: Date.now() + Math.random(),
+          x: Math.random() * (window.innerWidth - 100) + 50,
+          y: Math.random() * (window.innerHeight - 200) + 100,
+          color: colors[Math.floor(Math.random() * colors.length)],
+        };
+        
+        setFireworks(prev => [...prev, newFirework]);
+      };
+
+      // Create multiple fireworks
+      const intervals = [0, 300, 600, 900, 1200, 1500, 1800].map(delay => 
+        setTimeout(createFirework, delay)
+      );
+
+      // Stop creating fireworks after 3 seconds
+      const stopTimeout = setTimeout(() => {
+        setShowFireworks(false);
+      }, 3000);
+
+      return () => {
+        intervals.forEach(clearTimeout);
+        clearTimeout(stopTimeout);
+      };
+    }
+  }, [showFireworks]);
+
+  const removeFirework = (id) => {
+    setFireworks(prev => prev.filter(fw => fw.id !== id));
+  };
+
+  const formatTime = (ms) => {
+    const seconds = Math.floor((ms / 1000) % 60);
+    const minutes = Math.floor((ms / (1000 * 60)) % 60);
+    const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+    const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+
+    if (days > 0) {
+      return { value: days, unit: days === 1 ? 'Day' : 'Days', subValue: `${hours}h ${minutes}m` };
+    } else if (hours > 0) {
+      return { value: hours, unit: hours === 1 ? 'Hour' : 'Hours', subValue: `${minutes}m ${seconds}s` };
+    } else if (minutes > 0) {
+      return { value: minutes, unit: minutes === 1 ? 'Minute' : 'Minutes', subValue: `${seconds}s` };
+    } else {
+      return { value: seconds, unit: seconds === 1 ? 'Second' : 'Seconds', subValue: '' };
+    }
+  };
+
+  if (isLive && timeLeft === 0) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Fireworks */}
+        {fireworks.map(firework => (
+          <Firework
+            key={firework.id}
+            x={firework.x}
+            y={firework.y}
+            color={firework.color}
+            onComplete={() => removeFirework(firework.id)}
+          />
+        ))}
+
+        {/* Ribbons */}
+        {showRibbons && (
+          <>
+            <Ribbon side="left" onComplete={() => {}} />
+            <Ribbon side="right" onComplete={() => setShowRibbons(false)} />
+          </>
+        )}
+
+        <Container maxWidth="md">
+          <Paper
+            elevation={20}
+            sx={{
+              padding: 8,
+              textAlign: 'center',
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: 4,
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+            }}
+          >
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 800,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 2,
+                fontSize: { xs: '2.5rem', md: '3.5rem' },
+              }}
+            >
+              🎉 We're Live! 🎉
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                color: '#666',
+                fontWeight: 500,
+                mb: 4,
+              }}
+            >
+              Balance Sheet Application is now available!
+            </Typography>
+            <Box
+              sx={{
+                display: 'inline-block',
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                borderRadius: '30px',
+                fontWeight: 600,
+                fontSize: '1.2rem',
+                animation: 'pulse 2s infinite',
+                '@keyframes pulse': {
+                  '0%': { transform: 'scale(1)' },
+                  '50%': { transform: 'scale(1.05)' },
+                  '100%': { transform: 'scale(1)' },
+                },
+              }}
+            >
+              Ready to Access
+            </Box>
+          </Paper>
+        </Container>
+      </Box>
+    );
+  }
+
+  if (timeLeft === null) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+        }}
+      >
+        <Typography variant="h4" sx={{ color: 'white' }}>
+          Deployment not scheduled yet...
+        </Typography>
+      </Box>
+    );
+  }
+
+  const timeData = formatTime(timeLeft);
+
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Animated background elements */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: '10%',
+          left: '10%',
+          width: '200px',
+          height: '200px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          animation: 'float 6s ease-in-out infinite',
+          '@keyframes float': {
+            '0%, 100%': { transform: 'translateY(0px)' },
+            '50%': { transform: 'translateY(-20px)' },
+          },
+        }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: '15%',
+          right: '15%',
+          width: '150px',
+          height: '150px',
+          borderRadius: '50%',
+          background: 'rgba(255, 255, 255, 0.1)',
+          animation: 'float 8s ease-in-out infinite reverse',
+        }}
+      />
+
+      <Container maxWidth="md">
+        <Paper
+          elevation={24}
+          sx={{
+            padding: { xs: 4, md: 8 },
+            textAlign: 'center',
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(15px)',
+            borderRadius: 6,
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            position: 'relative',
+          }}
+        >
+          {/* Logo placeholder */}
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+              margin: '0 auto 2rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '2rem',
+            }}
+          >
+            🚀
+          </Box>
+
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              mb: 1,
+              fontSize: { xs: '2rem', md: '3rem' },
+            }}
+          >
+            Production Deployment
+          </Typography>
+
+          <Typography
+            variant="h6"
+            sx={{
+              color: '#666',
+              fontWeight: 500,
+              mb: 6,
+              fontSize: { xs: '1rem', md: '1.2rem' },
+            }}
+          >
+            Balance Sheet Application will be live in
+          </Typography>
+
+          {/* Main countdown display */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              mb: 4,
+            }}
+          >
+            <Box
+              sx={{
+                fontSize: { xs: '4rem', md: '8rem' },
+                fontWeight: 900,
+                color: '#1e3c72',
+                lineHeight: 1,
+                textShadow: '0 4px 20px rgba(30, 60, 114, 0.3)',
+                animation: timeData.value <= 10 && timeData.unit.includes('Second') ? 'pulse 1s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%': { transform: 'scale(1)', color: '#1e3c72' },
+                  '50%': { transform: 'scale(1.1)', color: '#ff6b6b' },
+                  '100%': { transform: 'scale(1)', color: '#1e3c72' },
+                },
+              }}
+            >
+              {timeData.value}
+            </Box>
+            <Typography
+              variant="h4"
+              sx={{
+                color: '#2a5298',
+                fontWeight: 700,
+                mb: 1,
+                fontSize: { xs: '1.5rem', md: '2rem' },
+              }}
+            >
+              {timeData.unit}
+            </Typography>
+            {timeData.subValue && (
+              <Typography
+                variant="h6"
+                sx={{
+                  color: '#666',
+                  fontWeight: 500,
+                  fontSize: { xs: '1rem', md: '1.2rem' },
+                }}
+              >
+                {timeData.subValue}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Progress indicator */}
+          <Box
+            sx={{
+              width: '100%',
+              height: '8px',
+              background: 'rgba(30, 60, 114, 0.1)',
+              borderRadius: '4px',
+              mb: 4,
+              overflow: 'hidden',
+            }}
+          >
+            <Box
+              sx={{
+                height: '100%',
+                background: 'linear-gradient(90deg, #1e3c72, #2a5298)',
+                borderRadius: '4px',
+                animation: 'progress 2s ease-in-out infinite alternate',
+                '@keyframes progress': {
+                  '0%': { width: '70%' },
+                  '100%': { width: '90%' },
+                },
+              }}
+            />
+          </Box>
+
+          <Typography
+            variant="body1"
+            sx={{
+              color: '#888',
+              fontStyle: 'italic',
+              fontSize: { xs: '0.9rem', md: '1rem' },
+            }}
+          >
+            Get ready for something amazing! ✨
+          </Typography>
+        </Paper>
+      </Container>
+    </Box>
+  );
+}
