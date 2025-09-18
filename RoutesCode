@@ -1,0 +1,182 @@
+Of course. Here are the database table designs and the Java Spring Boot code to generate the provided JSON response.
+SQL Table Design
+To store the data represented in the JSON, a relational database would typically use a set of normalized tables. The following SQL code defines a possible schema for roles, permissions, and a hierarchical menu system.
+-- Table to store permissions
+CREATE TABLE permissions (
+    permission_id INT PRIMARY KEY,
+    permission_name VARCHAR(50) NOT NULL UNIQUE,
+    description VARCHAR(255),
+    active CHAR(1) DEFAULT 'A' -- 'A' for Active, 'I' for Inactive
+);
+
+-- Table to store user roles
+CREATE TABLE roles (
+    role_id INT PRIMARY KEY AUTO_INCREMENT,
+    role_name VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- A junction table to link roles and permissions (many-to-many relationship)
+CREATE TABLE role_permissions (
+    role_id INT,
+    permission_id INT,
+    PRIMARY KEY (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(role_id),
+    FOREIGN KEY (permission_id) REFERENCES permissions(permission_id)
+);
+
+-- Table to store menu items with support for parent-child relationships
+CREATE TABLE menu_items (
+    menu_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL,
+    route VARCHAR(255) NOT NULL,
+    icon VARCHAR(50),
+    component VARCHAR(255),
+    parent_id INT, -- This column will be NULL for top-level menu items
+    FOREIGN KEY (parent_id) REFERENCES menu_items(menu_id)
+);
+
+-- Sample data insertion to match the JSON response
+INSERT INTO permissions (permission_id, permission_name, description, active) VALUES
+(1234, 'Delete', 'Stroes permission for uco users', 'A'),
+(1235, 'Create', 'Stroes permission for uco users', 'A'),
+(1236, 'Modify', 'Stroes permission for uco users', 'A');
+
+
+Java Spring Boot Code
+Here is the Java code using the Spring Boot framework to create a REST endpoint that returns the specified JSON. This example uses Data Transfer Objects (DTOs) to structure the response.
+1. DTO (Data Transfer Object) Classes
+These classes model the structure of your JSON response.
+PermissionDto.java
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PermissionDto {
+    @JsonProperty("permissionId")
+    private int permissionId;
+
+    @JsonProperty("permissionName")
+    private String permissionName;
+
+    @JsonProperty("description")
+    private String description;
+
+    @JsonProperty("active")
+    private String active;
+}
+
+MenuDto.java
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_EMPTY) // Hides the 'children' list if it's empty
+public class MenuDto {
+    private String title;
+    private String route;
+    private String icon;
+    private String component;
+    private List<MenuDto> children;
+}
+
+LoginDataDto.java
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class LoginDataDto {
+    private String token;
+
+    @JsonProperty("role_permissions")
+    private List<PermissionDto> rolePermissions;
+
+    private List<MenuDto> menu;
+}
+
+ApiResponse.java (The main response wrapper)
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ApiResponse<T> {
+    private boolean success;
+    private String message;
+    private T data;
+}
+
+2. Controller Class
+This REST controller defines an endpoint (/api/login) that builds and returns the complete response.
+LoginController.java
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api")
+public class LoginController {
+
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<LoginDataDto>> handleLogin() {
+        
+        // 1. Build the list of permissions
+        List<PermissionDto> permissions = Arrays.asList(
+            new PermissionDto(1234, "Delete", "Stroes permission for uco users", "A"),
+            new PermissionDto(1235, "Create", "Stroes permission for uco users", "A"),
+            new PermissionDto(1236, "Modify", "Stroes permission for uco users", "A")
+        );
+
+        // 2. Build the menu structure (with children)
+        MenuDto userManagement = new MenuDto(
+            "User Management",
+            "/users",
+            "people",
+            "UserManagementPage",
+            Arrays.asList(
+                new MenuDto("View All Users", "/users/list", "view_list", "UserListPage", Collections.emptyList()),
+                new MenuDto("Create User", "/users/new", "person_add", "../PSO/CreateUserPage", Collections.emptyList())
+            )
+        );
+
+        List<MenuDto> menu = Arrays.asList(
+            new MenuDto("Dashboard", "/dashboard", "home", "DashboardPage", Collections.emptyList()),
+            userManagement,
+            new MenuDto("Products", "/products", "shopping_cart", "ProductsPage", Collections.emptyList()),
+            new MenuDto("Settings", "/settings", "settings", "SettingsPage", Collections.emptyList())
+        );
+
+        // 3. Build the main data object
+        LoginDataDto loginData = new LoginDataDto(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", // Token
+            permissions,
+            menu
+        );
+
+        // 4. Wrap it in the final ApiResponse object
+        ApiResponse<LoginDataDto> response = new ApiResponse<>(true, "Login successful", loginData);
+
+        return ResponseEntity.ok(response);
+    }
+}
+
