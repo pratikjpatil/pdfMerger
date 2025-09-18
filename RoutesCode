@@ -1,181 +1,181 @@
-Of course. Here are the database table designs and the Java Spring Boot code to generate the provided JSON response.
-SQL Table Design
-To store the data represented in the JSON, a relational database would typically use a set of normalized tables. The following SQL code defines a possible schema for roles, permissions, and a hierarchical menu system.
--- Table to store permissions
-CREATE TABLE permissions (
-    permission_id INT PRIMARY KEY,
-    permission_name VARCHAR(50) NOT NULL UNIQUE,
-    description VARCHAR(255),
-    active CHAR(1) DEFAULT 'A' -- 'A' for Active, 'I' for Inactive
-);
-
--- Table to store user roles
-CREATE TABLE roles (
-    role_id INT PRIMARY KEY AUTO_INCREMENT,
-    role_name VARCHAR(50) NOT NULL UNIQUE
-);
-
--- A junction table to link roles and permissions (many-to-many relationship)
-CREATE TABLE role_permissions (
-    role_id INT,
-    permission_id INT,
-    PRIMARY KEY (role_id, permission_id),
-    FOREIGN KEY (role_id) REFERENCES roles(role_id),
-    FOREIGN KEY (permission_id) REFERENCES permissions(permission_id)
-);
-
--- Table to store menu items with support for parent-child relationships
+Of course. Here is a database table design and the corresponding Java Spring Boot code to generate the specified JSON response, including support for sub-options, positioning, and an active/inactive status.
+Database Table Design
+To store the hierarchical menu data, you can use a single self-referencing table. Top-level menu items will have a parent_id of NULL.
+Table: menu_items
+| Column | Data Type | Constraints | Description |
+|---|---|---|---|
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | The unique identifier for the menu item. |
+| title | VARCHAR(255) | NOT NULL | The display text for the menu item (e.g., "Dashboard"). |
+| route | VARCHAR(255) | NOT NULL | The navigation route (e.g., "/dashboard"). |
+| icon | VARCHAR(100) |  | The name of the icon to display. |
+| component | VARCHAR(255) |  | The component to be rendered for this route. |
+| parent_id | BIGINT | FOREIGN KEY (id) | The id of the parent menu item. NULL for top-level items. |
+| position | INT | NOT NULL, DEFAULT 0 | The sort order of the item within its level. |
+| is_active | BOOLEAN | NOT NULL, DEFAULT true | Status of the menu item. false will exclude it. |
+SQL Schema
+Here is the SQL statement to create the table:
 CREATE TABLE menu_items (
-    menu_id INT PRIMARY KEY AUTO_INCREMENT,
-    title VARCHAR(100) NOT NULL,
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
     route VARCHAR(255) NOT NULL,
-    icon VARCHAR(50),
+    icon VARCHAR(100),
     component VARCHAR(255),
-    parent_id INT, -- This column will be NULL for top-level menu items
-    FOREIGN KEY (parent_id) REFERENCES menu_items(menu_id)
+    parent_id BIGINT,
+    position INT NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    FOREIGN KEY (parent_id) REFERENCES menu_items(id)
 );
-
--- Sample data insertion to match the JSON response
-INSERT INTO permissions (permission_id, permission_name, description, active) VALUES
-(1234, 'Delete', 'Stroes permission for uco users', 'A'),
-(1235, 'Create', 'Stroes permission for uco users', 'A'),
-(1236, 'Modify', 'Stroes permission for uco users', 'A');
-
 
 Java Spring Boot Code
-Here is the Java code using the Spring Boot framework to create a REST endpoint that returns the specified JSON. This example uses Data Transfer Objects (DTOs) to structure the response.
-1. DTO (Data Transfer Object) Classes
-These classes model the structure of your JSON response.
-PermissionDto.java
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class PermissionDto {
-    @JsonProperty("permissionId")
-    private int permissionId;
-
-    @JsonProperty("permissionName")
-    private String permissionName;
-
-    @JsonProperty("description")
-    private String description;
-
-    @JsonProperty("active")
-    private String active;
-}
-
-MenuDto.java
-import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+This code follows a standard layered architecture: Controller -> Service -> Repository -> Entity.
+1. Entity: MenuItem.java
+This class maps to the menu_items database table. Annotations are used to filter inactive items and sort children automatically.
+import jakarta.persistence.*;
+import org.hibernate.annotations.Where;
+import java.util.ArrayList;
 import java.util.List;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_EMPTY) // Hides the 'children' list if it's empty
-public class MenuDto {
+@Entity
+@Table(name = "menu_items")
+public class MenuItem {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private String title;
     private String route;
     private String icon;
     private String component;
-    private List<MenuDto> children;
+    
+    @Column(name = "is_active")
+    private boolean isActive = true;
+    
+    private int position;
+
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JoinColumn(name = "parent_id")
+    @Where(clause = "is_active = true") // Only fetch active children
+    @OrderBy("position ASC") // Order children by position
+    private List<MenuItem> children = new ArrayList<>();
+
+    // Getters and Setters
 }
 
-LoginDataDto.java
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+2. DTO (Data Transfer Objects)
+DTOs are used to shape the final JSON output and prevent exposing database entities directly.
+MenuItemDto.java
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class LoginDataDto {
-    private String token;
+// This will exclude empty or null fields (like 'children' for items that have none)
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+public class MenuItemDto {
 
-    @JsonProperty("role_permissions")
-    private List<PermissionDto> rolePermissions;
+    private String title;
+    private String route;
+    private String icon;
+    private String component;
+    private List<MenuItemDto> children;
 
-    private List<MenuDto> menu;
+    // Constructors, Getters, and Setters
 }
 
-ApiResponse.java (The main response wrapper)
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+MenuResponse.java (Wrapper for the final response)
+import java.util.List;
+import java.util.Map;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ApiResponse<T> {
+public class MenuResponse {
+    
     private boolean success;
     private String message;
-    private T data;
+    private Map<String, List<MenuItemDto>> data;
+
+    public MenuResponse(boolean success, String message, List<MenuItemDto> menu) {
+        this.success = success;
+        this.message = message;
+        this.data = Map.of("menu", menu);
+    }
+    
+    // Getters and Setters
 }
 
-2. Controller Class
-This REST controller defines an endpoint (/api/login) that builds and returns the complete response.
-LoginController.java
+3. Repository: MenuItemRepository.java
+This interface fetches data from the database. Spring Data JPA provides the implementation automatically.
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
+
+    /**
+     * Finds all top-level menu items that are active and sorts them by position.
+     * Top-level items are those where parent_id is NULL.
+     */
+    @Query("SELECT m FROM MenuItem m WHERE m.parent_id IS NULL AND m.isActive = true ORDER BY m.position ASC")
+    List<MenuItem> findActiveTopLevelMenuItems();
+}
+
+4. Service: MenuService.java
+The service contains the business logic to fetch entities and map them to DTOs.
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class MenuService {
+
+    @Autowired
+    private MenuItemRepository menuItemRepository;
+
+    public List<MenuItemDto> getFullMenu() {
+        List<MenuItem> topLevelItems = menuItemRepository.findActiveTopLevelMenuItems();
+        return topLevelItems.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    // A recursive method to map an entity and all its children to DTOs
+    private MenuItemDto convertToDto(MenuItem menuItem) {
+        MenuItemDto dto = new MenuItemDto();
+        dto.setTitle(menuItem.getTitle());
+        dto.setRoute(menuItem.getRoute());
+        dto.setIcon(menuItem.getIcon());
+        dto.setComponent(menuItem.getComponent());
+
+        // Recursively convert children
+        if (menuItem.getChildren() != null && !menuItem.getChildren().isEmpty()) {
+            dto.setChildren(menuItem.getChildren().stream()
+                    .map(this::convertToDto)
+                    .collect(Collectors.toList()));
+        }
+        return dto;
+    }
+}
+
+5. Controller: MenuController.java
+This class exposes an HTTP endpoint to provide the menu data.
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api")
-public class LoginController {
+public class MenuController {
 
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginDataDto>> handleLogin() {
-        
-        // 1. Build the list of permissions
-        List<PermissionDto> permissions = Arrays.asList(
-            new PermissionDto(1234, "Delete", "Stroes permission for uco users", "A"),
-            new PermissionDto(1235, "Create", "Stroes permission for uco users", "A"),
-            new PermissionDto(1236, "Modify", "Stroes permission for uco users", "A")
-        );
+    @Autowired
+    private MenuService menuService;
 
-        // 2. Build the menu structure (with children)
-        MenuDto userManagement = new MenuDto(
-            "User Management",
-            "/users",
-            "people",
-            "UserManagementPage",
-            Arrays.asList(
-                new MenuDto("View All Users", "/users/list", "view_list", "UserListPage", Collections.emptyList()),
-                new MenuDto("Create User", "/users/new", "person_add", "../PSO/CreateUserPage", Collections.emptyList())
-            )
-        );
-
-        List<MenuDto> menu = Arrays.asList(
-            new MenuDto("Dashboard", "/dashboard", "home", "DashboardPage", Collections.emptyList()),
-            userManagement,
-            new MenuDto("Products", "/products", "shopping_cart", "ProductsPage", Collections.emptyList()),
-            new MenuDto("Settings", "/settings", "settings", "SettingsPage", Collections.emptyList())
-        );
-
-        // 3. Build the main data object
-        LoginDataDto loginData = new LoginDataDto(
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", // Token
-            permissions,
-            menu
-        );
-
-        // 4. Wrap it in the final ApiResponse object
-        ApiResponse<LoginDataDto> response = new ApiResponse<>(true, "Login successful", loginData);
-
+    @GetMapping("/menu")
+    public ResponseEntity<MenuResponse> getMenu() {
+        List<MenuItemDto> menuItems = menuService.getFullMenu();
+        MenuResponse response = new MenuResponse(true, "Login successful", menuItems);
         return ResponseEntity.ok(response);
     }
 }
