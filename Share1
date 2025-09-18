@@ -1,0 +1,161 @@
+Of course. Here is a well-designed, reusable hook for API calls in React using TanStack Query.
+This hook, useApi, abstracts the logic for both querying (GET) and mutating (POST, PUT, DELETE) data, providing a single, consistent interface for all your API interactions. 🚀
+1. API Client Setup (apiClient.js)
+First, it's a best practice to centralize your API client configuration. This allows you to set a base URL, headers, and interceptors in one place. We'll use axios for this.
+// src/lib/apiClient.js
+import axios from 'axios';
+
+// Create an Axios instance
+const apiClient = axios.create({
+  baseURL: 'https://api.example.com', // Replace with your API's base URL
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// You can also add interceptors for handling tokens, errors, etc.
+apiClient.interceptors.request.use((config) => {
+  // const token = localStorage.getItem('token');
+  // if (token) {
+  //   config.headers.Authorization = `Bearer ${token}`;
+  // }
+  return config;
+});
+
+export default apiClient;
+
+2. The useApi Hook (useApi.js)
+This is the core of the solution. The hook intelligently decides whether to use TanStack's useQuery for GET requests or useMutation for all other methods.
+// src/hooks/useApi.js
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '../lib/apiClient';
+
+/**
+ * A versatile hook for handling API calls using TanStack Query.
+ * It dynamically uses `useQuery` for GET requests and `useMutation` for other methods.
+ *
+ * @param {string} key - The TanStack Query key. For mutations, this is used for invalidation.
+ * @returns An object containing query/mutation state and functions.
+ */
+export const useApi = (key) => {
+  const queryClient = useQueryClient();
+
+  // The core API call function
+  const apiFn = async ({ method, url, data, params }) => {
+    const response = await apiClient({
+      method,
+      url,
+      data,
+      params,
+    });
+    return response.data;
+  };
+
+  // Use useQuery for data fetching (GET requests)
+  const query = (url, options = {}) => {
+    return useQuery({
+      queryKey: [key, url, options.params],
+      queryFn: () => apiFn({ method: 'GET', url, params: options.params }),
+      ...options, // Spread any additional useQuery options (e.g., enabled, staleTime)
+    });
+  };
+
+  // Use useMutation for data modification (POST, PUT, DELETE, etc.)
+  const mutation = (options = {}) => {
+    return useMutation({
+      mutationFn: (variables) => apiFn(variables), // variables will be { method, url, data }
+      onSuccess: (data, variables, context) => {
+        // Invalidate the relevant query key to refetch data after a successful mutation
+        queryClient.invalidateQueries({ queryKey: [key] });
+        if (options.onSuccess) {
+          options.onSuccess(data, variables, context);
+        }
+      },
+      ...options, // Spread any additional useMutation options
+    });
+  };
+
+  return { query, mutation };
+};
+
+
+3. Usage Example (UsersComponent.jsx)
+Here’s how you would use the useApi hook within a React component to fetch a list of users and add a new one.
+// src/components/UsersComponent.jsx
+import React, { useState } from 'react';
+import { useApi } from '../hooks/useApi';
+
+function UsersComponent() {
+  const [newUserName, setNewUserName] = useState('');
+  
+  // Initialize the hook with a query key for 'users'
+  const { query: useUsersQuery, mutation: useUserMutation } = useApi('users');
+
+  // 1. Fetching data with useQuery
+  const { data: users, isLoading, isError, error } = useUsersQuery('/users', {
+    // TanStack Query options can be passed here
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // 2. Mutating data with useMutation
+  const { mutate: createUser, isPending: isCreatingUser } = useUserMutation({
+    onSuccess: () => {
+      console.log('User created successfully!');
+      setNewUserName(''); // Clear the input on success
+    },
+    onError: (err) => {
+      console.error('Failed to create user:', err.message);
+    },
+  });
+
+  const handleAddUser = (e) => {
+    e.preventDefault();
+    if (!newUserName.trim()) return;
+
+    // Call the mutate function with method, url, and data
+    createUser({
+      method: 'POST',
+      url: '/users',
+      data: { name: newUserName, role: 'developer' },
+    });
+  };
+
+  if (isLoading) return <div>Loading users...</div>;
+  if (isError) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      <h2>User List</h2>
+      <ul>
+        {users?.map((user) => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
+
+      <hr />
+
+      <form onSubmit={handleAddUser}>
+        <h3>Add New User</h3>
+        <input
+          type="text"
+          value={newUserName}
+          onChange={(e) => setNewUserName(e.target.value)}
+          placeholder="Enter user name"
+          disabled={isCreatingUser}
+        />
+        <button type="submit" disabled={isCreatingUser}>
+          {isCreatingUser ? 'Adding...' : 'Add User'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export default UsersComponent;
+
+Design Rationale
+ * Single Point of Entry: The useApi(key) hook provides a single, unified entry point (query and mutation functions) for all API interactions related to a specific data entity (e.g., 'users', 'products').
+ * Intelligent Method Handling: It abstracts away the need to manually choose between useQuery and useMutation. You simply call query() for fetching and mutation() for changing data.
+ * Automatic Cache Invalidation: The mutation part is pre-configured to automatically invalidate queries associated with its key (users in this case). When you create a new user, the user list automatically refetches, ensuring the UI is always up-to-date.
+ * Centralized & Scalable: By using a centralized apiClient, you can easily manage authentication, base URLs, and error handling for your entire application.
+ * Extensibility: You can easily pass any valid useQuery or useMutation options (like enabled, staleTime, onSettled, etc.) directly into the hook's methods, retaining the full power of TanStack Query.
