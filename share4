@@ -1,0 +1,213 @@
+Of course. Here is an eye-catching countdown component built in React using Material-UI, along with the logic for a celebratory fireworks and ribbon burst effect upon completion.
+This component is designed to be a drop-in replacement for the 'Showing countdown' string in your NewLoginCard component.
+1. Install Dependency for Fireworks
+First, you'll need a library to handle the confetti/fireworks effect. react-confetti is a great choice.
+npm install react-confetti
+
+2. Create the Countdown Component
+Create a new file named ProductionCountdown.js and add the following code. This component will display the countdown timer and trigger the confetti celebration.
+// ProductionCountdown.js
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { Box, Typography, Paper, Grid } from '@mui/material';
+import Confetti from 'react-confetti';
+import { keyframes } from '@mui/system';
+
+// Define glowing animation for the text
+const glow = keyframes`
+  0% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #0073e6, 0 0 20px #0073e6; }
+  50% { text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #0073e6, 0 0 40px #0073e6; }
+  100% { text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #0073e6, 0 0 20px #0073e6; }
+`;
+
+// Define a subtle bounce for the time boxes
+const bounce = keyframes`
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+`;
+
+export default function ProductionCountdown({ liveStatus }) {
+  const [timeLeft, setTimeLeft] = useState({});
+  const [isLive, setIsLive] = useState(false);
+  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+  const targetDate = useMemo(() => new Date(liveStatus.LIVE_DATE), [liveStatus.LIVE_DATE]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    const timer = setInterval(() => {
+      const difference = targetDate - new Date();
+
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        });
+      } else {
+        setIsLive(true);
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [targetDate]);
+
+  const TimeBox = ({ value, label }) => (
+    <Paper
+      elevation={12}
+      sx={{
+        background: 'rgba(0, 0, 0, 0.4)',
+        backdropFilter: 'blur(10px)',
+        padding: { xs: 2, md: 4 },
+        textAlign: 'center',
+        borderRadius: 4,
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        animation: `${bounce} 3s ease-in-out infinite`,
+      }}
+    >
+      <Typography variant="h2" component="div" sx={{ fontWeight: 'bold', color: '#fff', animation: `${glow} 2s ease-in-out infinite` }}>
+        {String(value).padStart(2, '0')}
+      </Typography>
+      <Typography variant="h6" sx={{ color: '#b0bec5' }}>
+        {label}
+      </Typography>
+    </Paper>
+  );
+
+  return (
+    <Box
+      sx={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
+        padding: 4,
+        width: {
+          xs: '90vw',
+          md: '85vw',
+        },
+        height: '100%',
+        color: 'white',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {isLive && (
+        <Confetti
+          width={windowSize.width}
+          height={windowSize.height}
+          numberOfPieces={400}
+          recycle={false}
+          gravity={0.15}
+          colors={['#ff4757', '#ffa502', '#1e90ff', '#2ed573', '#ffffff']}
+          // Simulates ribbons by using rectangles
+          drawShape={ctx => {
+            ctx.fillRect(0, 0, 10, 20);
+          }}
+        />
+      )}
+      <Typography
+        variant="h4"
+        gutterBottom
+        sx={{
+          fontWeight: '300',
+          letterSpacing: '2px',
+          mb: 4,
+        }}
+      >
+        {isLive ? "We are now LIVE! 🎉" : liveStatus.LIVE_TODISPLAY}
+      </Typography>
+
+      {!isLive && Object.keys(timeLeft).length > 0 && (
+        <Grid container spacing={3} justifyContent="center" maxWidth="md">
+          <Grid item xs={6} sm={3}>
+            <TimeBox value={timeLeft.days} label="Days" />
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <TimeBox value={timeLeft.hours} label="Hours" />
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <TimeBox value={timeLeft.minutes} label="Minutes" />
+          </Grid>
+          <Grid item xs={6} sm={3}>
+            <TimeBox value={timeLeft.seconds} label="Seconds" />
+          </Grid>
+        </Grid>
+      )}
+    </Box>
+  );
+}
+
+3. Update Your NewLoginCard Component
+Now, import the ProductionCountdown component and use it in your NewLoginCard.js file.
+// NewLoginCard.js (Updated)
+
+import React from 'react';
+// ... other imports
+import ProductionCountdown from './ProductionCountdown'; // <-- Import the new component
+
+export default function NewLoginCard({
+  // ... other props
+  showLiveCountDown,
+}) {
+
+  // **Simulate the liveStatus object for demonstration**
+  // In your real app, this would come from an API call
+  const liveStatusData = {
+    LIVE_DATE: "September 19, 2025 00:00:00", // <-- Set a future date for testing
+    LIVE_TODISPLAY: "BS will be live in",
+    LIVE_STARTDATE: "April 4, 2024 14:02:00",
+  };
+
+  return (
+    <Box
+      sx={{
+        // ... your existing Box styles
+      }}
+    >
+      {/* Left Side - Blue Background */}
+      <Box
+        sx={{
+          // ... your existing Box styles
+        }}
+      >
+        <LegalDisclaimer />
+      </Box>
+
+      {/* Right Side - Login Form or Countdown */}
+      {!showLiveCountDown ? (
+        <Box
+          sx={{
+            // ... your existing Box styles for the login form
+          }}
+        >
+          {/* ... your existing Login Form JSX */}
+        </Box>
+      ) : (
+        // 👇 Replace the old string with the new component
+        <ProductionCountdown liveStatus={liveStatusData} />
+      )}
+    </Box>
+  );
+}
+
+Key Features of the Countdown Component
+ * Eye-Catching Design: Uses a dark, gradient background with glowing text and animated boxes to draw attention.
+ * Dynamic Calculation: Accurately calculates the time remaining and updates every second.
+ * Celebration Effect: Once the timer hits zero, it triggers a full-screen confetti and ribbon burst using react-confetti. 🎊
+ * Responsive: The layout adjusts for different screen sizes using Material-UI's Grid system.
+ * Reusable: It's a self-contained component that only requires the liveStatus object as a prop.
+ * Smooth Animations: Utilizes CSS keyframes for subtle animations on the timer boxes and text, making it feel more dynamic.
