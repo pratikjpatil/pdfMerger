@@ -1,116 +1,225 @@
-// src/App.jsx
-import React, { useEffect, useState } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
+import Login from "../features/auth/pages/Login";
+import Home from "../pages/Home";
+import PrivateRouter from "./PrivateRouter";
+import ServerError from "../pages/ServerError";
+import NotFound from "../pages/NotFound";
+import HomeLayout from "../layout/HomeLayout";
+import { SnackbarProviderComponent } from "../utils/SnackbarContext";
+import UCORouter from "./UCORouter";
+import PSORouter from "./PSORouter";
+import FRTRouter from "./FRTRouter";
+import BranchRouter from "./BranchRouter";
+import SupportRouter from "./SupportRouter";
+import GLIFRouter from "./GLIFRouter";
+import F1BogRouter from "./F1BogRouter";
+import ExtUserRouter from "./ExtUserRouter";
 
-// Example: Lazy loader for dynamic imports
-const lazyImport = (path) =>
-  React.lazy(() =>
-    import(`./pages${path}.jsx`).catch(() => import("./pages/NotFound.jsx"))
-  );
-
-// Recursive function to render routes
-const renderRoutes = (menus) =>
-  menus.map((item) => {
-    const Component = lazyImport(item.component);
-
-    return item.children && item.children.length > 0 ? (
-      <Route key={item.route} path={item.route} element={<Component />}>
-        {renderRoutes(item.children)}
-      </Route>
-    ) : (
-      <Route
-        key={item.route}
-        path={item.route}
-        element={
-          <React.Suspense fallback={<div>Loading...</div>}>
-            <Component />
-          </React.Suspense>
-        }
-      />
-    );
-  });
-
-function App() {
-  const [menuData, setMenuData] = useState([]);
-
-  useEffect(() => {
-    // Simulating API call
-    const fetchData = async () => {
-      const response = {
-        success: true,
-        message: "Login successful",
-        data: {
-          menu: [
-            {
-              title: "Dashboard",
-              route: "/dashboard",
-              icon: "home",
-              component: "/DashboardPage",
-              children: [],
-            },
-            {
-              title: "User Management",
-              route: "/users",
-              icon: "people",
-              component: "UserManagementPage",
-              children: [
-                {
-                  title: "View All Users",
-                  route: "/users/list",
-                  icon: "view_list",
-                  component: "./UserListPage",
-                },
-                {
-                  title: "Create User",
-                  route: "/users/new",
-                  icon: "person_add",
-                  component: "../PSO/CreateUserPage",
-                },
-              ],
-            },
-            {
-              title: "Products",
-              route: "/products",
-              icon: "shopping_cart",
-              component: "ProductsPage",
-              children: [],
-            },
-            {
-              title: "Settings",
-              route: "/settings",
-              icon: "settings",
-              component: "SettingsPage",
-              children: [],
-            },
-          ],
-        },
-      };
-
-      setMenuData(response.data.menu);
-    };
-
-    fetchData();
-  }, []);
-
+const AppRouter = () => {
   return (
-    <Router>
+    <SnackbarProviderComponent>
       <Routes>
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Login />} />
+        <Route path="/server-error" element={<ServerError />} />
+        <Route path="/blank" element={<Home></Home>} />
+        <Route path="*" element={<NotFound />} />
 
-        {/* Dynamically render routes */}
-        {renderRoutes(menuData)}
+        {/* Landing page */}
+        <Route
+          path="/home"
+          element={
+            <PrivateRouter>
+              <HomeLayout />
+            </PrivateRouter>
+          }
+        />
 
-        {/* Fallback route */}
-        <Route path="*" element={<div>404 Not Found</div>} />
+        {/* Router for handling all UCO User related routes */}
+        <Route element={<HomeLayout />}>
+          <Route
+            path="uco/*"
+            element={
+              <PrivateRouter allowedRoles={["51"]}>
+                <UCORouter />
+              </PrivateRouter>
+            }
+          />
+        </Route>
+
+        {/* Router for handling all PSO User related routes */}
+        <Route element={<HomeLayout />}>
+          <Route
+            path="pso/*"
+            element={
+              <PrivateRouter allowedRoles={["52"]}>
+                <PSORouter />
+              </PrivateRouter>
+            }
+          />
+        </Route>
+
+        {/* Router for handling all FRT User related routes */}
+        <Route element={<HomeLayout />}>
+          <Route
+            path="frt/*"
+            element={
+              <PrivateRouter allowedRoles={["53"]}>
+                <FRTRouter />
+              </PrivateRouter>
+            }
+          />
+        </Route>
+
+        {/* Router for handling all FRT User related routes */}
+        <Route element={<HomeLayout />}>
+          <Route
+            path="branch/*"
+            element={
+              <PrivateRouter allowedRoles={["54"]}>
+                <BranchRouter />
+              </PrivateRouter>
+            }
+          />
+        </Route>
+
+        {/* Router for handling all FRT User related routes */}
+        <Route element={<HomeLayout />}>
+          <Route
+            path="support/*"
+            element={
+              <PrivateRouter allowedRoles={["55"]}>
+                <SupportRouter />
+              </PrivateRouter>
+            }
+          />
+        </Route>
+
+        {/* Router for handling all GLIF User related routes */}
+        <Route element={<HomeLayout />}>
+          <Route
+            path="glif/*"
+            element={
+              <PrivateRouter allowedRoles={["56"]}>
+                <GLIFRouter />
+              </PrivateRouter>
+            }
+          />
+        </Route>
+
+        {/* Router for handling all GLIF User related routes */}
+        <Route element={<HomeLayout />}>
+          <Route
+            path="f1bog/*"
+            element={
+              <PrivateRouter allowedRoles={["57"]}>
+                <F1BogRouter />
+              </PrivateRouter>
+            }
+          />
+        </Route>
+
+        {/* Router for handling all GLIF User related routes */}
+        <Route element={<HomeLayout />}>
+          <Route
+            path="extusers/*"
+            element={
+              <PrivateRouter allowedRoles={["58"]}>
+                <ExtUserRouter />
+              </PrivateRouter>
+            }
+          />
+        </Route>
       </Routes>
-    </Router>
+    </SnackbarProviderComponent>
   );
+};
+
+export default AppRouter;
+
+
+///////////////////////
+
+The reponse i will be getting from login api
+
+{
+    "expiresIn": 900,
+    "sub": "1234567",
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyaWQiOiIxMjM0NTY3Iiwic3ViIjoiMTIzNDU2NyIsImp0aSI6Ijk4MTJlYTlkLTIyYWUtNDI1ZS04NjRiLWZlMDkyOTE2NTA4MiIsImlhdCI6MTc1ODIwMTM3MywiZXhwIjoxNzU4MjAyMjczfQ.j0xkJdv2_wR5r5uOyrMuJ2aZed7jCcjawB5UFGMDKB0",
+    "roleData": [
+        {
+            "role_permissions": [
+                {
+                    "permissionId": 10001,
+                    "permissionName": "Create",
+                    "description": "Permission to create new user creation, modification and deletion requests",
+                    "active": "A"
+                },
+                {
+                    "permissionId": 10002,
+                    "permissionName": "Delete",
+                    "description": "Permission to delete user creation, modification and deletion requests",
+                    "active": "A"
+                },
+                {
+                    "permissionId": 10003,
+                    "permissionName": "Modify",
+                    "description": "Permission to modify user creation, modification and deletion requests",
+                    "active": "A"
+                }
+            ]
+        },
+        {
+            "root_menus": [
+                {
+                    "id": 2,
+                    "title": "Downloads",
+                    "icon": "download_icon",
+                    "route": "/downloads",
+                    "screenDetails": {
+                        "screenId": "DOWNLOAD_SCREEN",
+                        "screenTitle": "Download",
+                        "screenComponent": "/downloads"
+                    }
+                },
+                {
+                    "id": 3,
+                    "title": "User Management",
+                    "icon": "user_icon",
+                    "route": "/user-management",
+                    "hasChildren": true,
+                    "screenDetails": {
+                        "screenId": "USER_MANAGEMENT_SCREEN",
+                        "screenTitle": "User Management",
+                        "screenComponent": "/user-management"
+                    },
+                    "children": [
+                        {
+                            "id": 4,
+                            "title": "User Create",
+                            "route": "/user-management/create",
+                            "screenDetails": {
+                                "screenId": "USER_CREATE_SCREEN",
+                                "screenTitle": "User Create",
+                                "screenComponent": "/user-management/create"
+                            }
+                        },
+                        {
+                            "id": 5,
+                            "title": "User Modify",
+                            "route": "/user-management/modify",
+                            "screenDetails": {
+                                "screenId": "USER_MODIFY_SCREEN",
+                                "screenTitle": "User Modify",
+                                "screenComponent": "/user-management/modify"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "jti": "9812ea9d-22ae-425e-864b-fe0929165082",
+    "tokenType": "Bearer"
 }
 
-export default App;
+This is to implement synamic routing the routes and the component to will be coming from db only
