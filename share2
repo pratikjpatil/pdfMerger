@@ -1,225 +1,173 @@
-import { Routes, Route } from "react-router-dom";
+Got it. That's a crucial detail! The solutions provided earlier were for React Router v6, which uses a JSX-based <Routes> and <Route> configuration.
+React Router v7 uses a completely different, object-based API. The old components are no longer the primary way to define routes, which is why you're seeing errors.
+We need to refactor the code to use the modern createBrowserRouter and RouterProvider API. This approach is more powerful and provides better data loading and error handling capabilities.
+Here is the updated, correct solution for React Router v7.7.0.
+1. AppRouter.jsx (Major Overhaul) 🚀
+This component is now the heart of your routing. It will dynamically create the entire route configuration object based on the Redux state and provide it to the rest of your app via RouterProvider.
+// src/router/AppRouter.jsx
+import React, { useMemo, Suspense } from "react";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+// Layouts and Guards
+import HomeLayout from "../layout/HomeLayout";
+import PrivateRoute from "./PrivateRoute";
+
+// Page Components
 import Login from "../features/auth/pages/Login";
 import Home from "../pages/Home";
-import PrivateRouter from "./PrivateRouter";
-import ServerError from "../pages/ServerError";
 import NotFound from "../pages/NotFound";
-import HomeLayout from "../layout/HomeLayout";
-import { SnackbarProviderComponent } from "../utils/SnackbarContext";
-import UCORouter from "./UCORouter";
-import PSORouter from "./PSORouter";
-import FRTRouter from "./FRTRouter";
-import BranchRouter from "./BranchRouter";
-import SupportRouter from "./SupportRouter";
-import GLIFRouter from "./GLIFRouter";
-import F1BogRouter from "./F1BogRouter";
-import ExtUserRouter from "./ExtUserRouter";
+import ServerError from "../pages/ServerError";
+import ComponentLoadError from "../pages/ComponentLoadError";
+import { generateRouteObjects } from "./routeGenerator"; // We'll create this helper
+
+// A fallback component for suspense
+const PageLoader = () => <div>Loading Page...</div>;
 
 const AppRouter = () => {
+  const menus = useSelector((state) => state.menus.items);
+
+  // useMemo is crucial here. It prevents re-creating the router on every render,
+  // which would cause the entire app to remount.
+  const router = useMemo(() => {
+    // Generate the dynamic routes from the menu data
+    const dynamicRoutes = generateRouteObjects(menus || []);
+
+    // Define the entire application route structure as an array of objects
+    const routeConfig = [
+      {
+        path: "/",
+        element: <Login />,
+        errorElement: <ServerError />, // Top-level error boundary
+      },
+      {
+        path: "/server-error",
+        element: <ServerError />,
+      },
+      // This is the protected section of your app
+      {
+        element: <PrivateRoute />,
+        children: [
+          {
+            element: <HomeLayout />,
+            children: [
+              {
+                path: "/home",
+                element: <Home />,
+              },
+              // Spread the dynamically generated routes here
+              ...dynamicRoutes,
+            ],
+          },
+        ],
+      },
+      // The catch-all 404 route
+      {
+        path: "*",
+        element: <NotFound />,
+      },
+    ];
+
+    return createBrowserRouter(routeConfig);
+  }, [menus]); // The router will only be recreated if the 'menus' data changes
+
   return (
-    <SnackbarProviderComponent>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/server-error" element={<ServerError />} />
-        <Route path="/blank" element={<Home></Home>} />
-        <Route path="*" element={<NotFound />} />
-
-        {/* Landing page */}
-        <Route
-          path="/home"
-          element={
-            <PrivateRouter>
-              <HomeLayout />
-            </PrivateRouter>
-          }
-        />
-
-        {/* Router for handling all UCO User related routes */}
-        <Route element={<HomeLayout />}>
-          <Route
-            path="uco/*"
-            element={
-              <PrivateRouter allowedRoles={["51"]}>
-                <UCORouter />
-              </PrivateRouter>
-            }
-          />
-        </Route>
-
-        {/* Router for handling all PSO User related routes */}
-        <Route element={<HomeLayout />}>
-          <Route
-            path="pso/*"
-            element={
-              <PrivateRouter allowedRoles={["52"]}>
-                <PSORouter />
-              </PrivateRouter>
-            }
-          />
-        </Route>
-
-        {/* Router for handling all FRT User related routes */}
-        <Route element={<HomeLayout />}>
-          <Route
-            path="frt/*"
-            element={
-              <PrivateRouter allowedRoles={["53"]}>
-                <FRTRouter />
-              </PrivateRouter>
-            }
-          />
-        </Route>
-
-        {/* Router for handling all FRT User related routes */}
-        <Route element={<HomeLayout />}>
-          <Route
-            path="branch/*"
-            element={
-              <PrivateRouter allowedRoles={["54"]}>
-                <BranchRouter />
-              </PrivateRouter>
-            }
-          />
-        </Route>
-
-        {/* Router for handling all FRT User related routes */}
-        <Route element={<HomeLayout />}>
-          <Route
-            path="support/*"
-            element={
-              <PrivateRouter allowedRoles={["55"]}>
-                <SupportRouter />
-              </PrivateRouter>
-            }
-          />
-        </Route>
-
-        {/* Router for handling all GLIF User related routes */}
-        <Route element={<HomeLayout />}>
-          <Route
-            path="glif/*"
-            element={
-              <PrivateRouter allowedRoles={["56"]}>
-                <GLIFRouter />
-              </PrivateRouter>
-            }
-          />
-        </Route>
-
-        {/* Router for handling all GLIF User related routes */}
-        <Route element={<HomeLayout />}>
-          <Route
-            path="f1bog/*"
-            element={
-              <PrivateRouter allowedRoles={["57"]}>
-                <F1BogRouter />
-              </PrivateRouter>
-            }
-          />
-        </Route>
-
-        {/* Router for handling all GLIF User related routes */}
-        <Route element={<HomeLayout />}>
-          <Route
-            path="extusers/*"
-            element={
-              <PrivateRouter allowedRoles={["58"]}>
-                <ExtUserRouter />
-              </PrivateRouter>
-            }
-          />
-        </Route>
-      </Routes>
-    </SnackbarProviderComponent>
+    <Suspense fallback={<PageLoader />}>
+      <RouterProvider router={router} />
+    </Suspense>
   );
 };
 
 export default AppRouter;
 
+2. routeGenerator.js (New Helper File) 🛠️
+This new utility file contains the logic for recursively converting your API menu structure into the route objects that React Router v7 expects.
+// src/router/routeGenerator.js
+import React, { Suspense } from "react";
+import ComponentLoadError from "../pages/ComponentLoadError";
 
-///////////////////////
+// Helper to lazy load components
+const lazyLoadComponent = (path) => {
+  return React.lazy(() =>
+    import(`../features/${path}.jsx`).catch(() => {
+      console.error(`Component not found at path: ../features/${path}.jsx`);
+      return { default: ComponentLoadError };
+    })
+  );
+};
 
-The reponse i will be getting from login api
+/**
+ * Recursively generates an array of route objects for React Router v7.
+ * @param {Array} menuItems - The menu array from the API.
+ * @returns {Array<Object>} An array of route configuration objects.
+ */
+export const generateRouteObjects = (menuItems) => {
+  const routes = [];
 
-{
-    "expiresIn": 900,
-    "sub": "1234567",
-    "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyaWQiOiIxMjM0NTY3Iiwic3ViIjoiMTIzNDU2NyIsImp0aSI6Ijk4MTJlYTlkLTIyYWUtNDI1ZS04NjRiLWZlMDkyOTE2NTA4MiIsImlhdCI6MTc1ODIwMTM3MywiZXhwIjoxNzU4MjAyMjczfQ.j0xkJdv2_wR5r5uOyrMuJ2aZed7jCcjawB5UFGMDKB0",
-    "roleData": [
-        {
-            "role_permissions": [
-                {
-                    "permissionId": 10001,
-                    "permissionName": "Create",
-                    "description": "Permission to create new user creation, modification and deletion requests",
-                    "active": "A"
-                },
-                {
-                    "permissionId": 10002,
-                    "permissionName": "Delete",
-                    "description": "Permission to delete user creation, modification and deletion requests",
-                    "active": "A"
-                },
-                {
-                    "permissionId": 10003,
-                    "permissionName": "Modify",
-                    "description": "Permission to modify user creation, modification and deletion requests",
-                    "active": "A"
-                }
-            ]
-        },
-        {
-            "root_menus": [
-                {
-                    "id": 2,
-                    "title": "Downloads",
-                    "icon": "download_icon",
-                    "route": "/downloads",
-                    "screenDetails": {
-                        "screenId": "DOWNLOAD_SCREEN",
-                        "screenTitle": "Download",
-                        "screenComponent": "/downloads"
-                    }
-                },
-                {
-                    "id": 3,
-                    "title": "User Management",
-                    "icon": "user_icon",
-                    "route": "/user-management",
-                    "hasChildren": true,
-                    "screenDetails": {
-                        "screenId": "USER_MANAGEMENT_SCREEN",
-                        "screenTitle": "User Management",
-                        "screenComponent": "/user-management"
-                    },
-                    "children": [
-                        {
-                            "id": 4,
-                            "title": "User Create",
-                            "route": "/user-management/create",
-                            "screenDetails": {
-                                "screenId": "USER_CREATE_SCREEN",
-                                "screenTitle": "User Create",
-                                "screenComponent": "/user-management/create"
-                            }
-                        },
-                        {
-                            "id": 5,
-                            "title": "User Modify",
-                            "route": "/user-management/modify",
-                            "screenDetails": {
-                                "screenId": "USER_MODIFY_SCREEN",
-                                "screenTitle": "User Modify",
-                                "screenComponent": "/user-management/modify"
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
-    ],
-    "jti": "9812ea9d-22ae-425e-864b-fe0929165082",
-    "tokenType": "Bearer"
+  for (const item of menuItems) {
+    // Only create a route if it has screen details and a component path
+    if (item.screenDetails && item.screenDetails.componentPath) {
+      const Component = lazyLoadComponent(item.screenDetails.componentPath);
+      routes.push({
+        path: item.route,
+        element: (
+          <Suspense fallback={<div>Loading...</div>}>
+            <Component />
+          </Suspense>
+        ),
+      });
+    }
+
+    // Recursively add children routes if they exist
+    if (item.hasChildren && Array.isArray(item.children)) {
+      routes.push(...generateRouteObjects(item.children));
+    }
+  }
+
+  return routes;
+};
+
+3. App.jsx (Simplified) ✨
+Your main App.jsx file is now much simpler. It no longer needs the <BrowserRouter>. All it does is set up the providers and render AppRouter, which handles everything else.
+// src/App.jsx (Updated)
+import "./App.css";
+import AppRouter from "./router/AppRouter"; // Corrected path if needed
+import { Box, CssBaseline, ThemeProvider } from "@mui/material";
+import liquidGlassTheme from "./theme/components";
+import { BackgroundProvider } from "./context/BackgroundContext";
+import { AuthProvider } from "./context/AuthContext";
+import { MenuProvider } from "./context/MenuContext";
+import { Provider } from "react-redux";
+import { store } from "./app/store";
+
+// AppContent can be simplified or merged directly into App
+const AppContent = () => {
+  // The Box styling can be moved to a layout component or stay here
+  return (
+    <Box sx={{ minHeight: "100vh" /* ...other styles */ }}>
+      {/* AppRouter now contains the RouterProvider and all route logic */}
+      <AppRouter />
+    </Box>
+  );
+};
+
+function App() {
+  return (
+    <ThemeProvider theme={liquidGlassTheme}>
+      <CssBaseline />
+      <Provider store={store}>
+        <MenuProvider>
+          <AuthProvider>
+            <BackgroundProvider>
+              <AppContent />
+            </BackgroundProvider>
+          </AuthProvider>
+        </MenuProvider>
+      </Provider>
+    </ThemeProvider>
+  );
 }
 
-This is to implement synamic routing the routes and the component to will be coming from db only
+export default App;
+
+Your PrivateRoute.jsx and HomeLayout.jsx components will work exactly as before, using the <Outlet /> component to render their child routes. This pattern remains consistent in v7.
