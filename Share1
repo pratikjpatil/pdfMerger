@@ -1,252 +1,656 @@
-Of course. Here is a well-designed, reusable hook for API calls in React using TanStack Query.
-This hook, useApi, abstracts the logic for both querying (GET) and mutating (POST, PUT, DELETE) data, providing a single, consistent interface for all your API interactions. 🚀
-1. API Client Setup (apiClient.js)
-First, it's a best practice to centralize your API client configuration. This allows you to set a base URL, headers, and interceptors in one place. We'll use axios for this.
-// src/lib/apiClient.js
-import axios from 'axios';
+# =============================================================================
+# GitLab CI/CD Pipeline — Java Spring Boot (Maven) → JFrog Artifactory → K8s
+# Environment : Air-gapped / Internal SBI Enterprise
+# GitLab Host  : gitlab.sbi
+# Registry    : JFrog Artifactory (Docker + Maven repos)
+# Target      : Kubernetes Cluster (kubectl / Helm)
+# =============================================================================
 
-// Create an Axios instance
-const apiClient = axios.create({
-  baseURL: 'https://api.example.com', // Replace with your API's base URL
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+# ---------------------------------------------------------------------------
+# Global Variables — override via GitLab CI/CD Settings > Variables
+# ---------------------------------------------------------------------------
+variables:
 
-// You can also add interceptors for handling tokens, errors, etc.
-apiClient.interceptors.request.use((config) => {
-  // const token = localStorage.getItem('token');
-  // if (token) {
-  //   config.headers.Authorization = `Bearer ${token}`;
-  // }
-  return config;
-});
+  # ── JFrog Artifactory ──────────────────────────────────────────────────────
+  JFROG_URL:              "https://artifactory.sbi"                 # Artifactory base URL
+  JFROG_DOCKER_REGISTRY:  "artifactory.sbi/docker-local"           # Docker registry in Artifactory
+  JFROG_MAVEN_REPO:       "artifactory.sbi/artifactory/libs-release"# Maven release repo
+  JFROG_MAVEN_SNAPSHOT:   "artifactory.sbi/artifactory/libs-snapshot"# Maven snapshot repo
+  # JFROG_USER / JFROG_PASSWORD / JFROG_API_KEY  →  set as masked CI/CD vars
 
-export default apiClient;
+  # ── Application ───────────────────────────────────────────────────────────
+  APP_NAME:               "$CI_PROJECT_NAME"
+  APP_VERSION:            "1.0.${CI_PIPELINE_IID}"
+  DOCKER_IMAGE:           "${JFROG_DOCKER_REGISTRY}/${APP_NAME}"
+  DOCKER_TAG:             "${APP_VERSION}-${CI_COMMIT_SHORT_SHA}"
+  DOCKER_IMAGE_FULL:      "${DOCKER_IMAGE}:${DOCKER_TAG}"
+  DOCKER_IMAGE_LATEST:    "${DOCKER_IMAGE}:latest"
 
-2. The useApi Hook (useApi.js)
-This is the core of the solution. The hook intelligently decides whether to use TanStack's useQuery for GET requests or useMutation for all other methods.
-// src/hooks/useApi.js
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '../lib/apiClient';
+  # ── Maven ─────────────────────────────────────────────────────────────────
+  MAVEN_OPTS:             "-Dmaven.repo.local=${CI_PROJECT_DIR}/.m2/repository
+                           -Dmaven.wagon.http.ssl.insecure=false
+                           -Xmx1024m"
+  MAVEN_CLI_OPTS:         "--batch-mode --errors --fail-at-end
+                           --no-transfer-progress
+                           -s ${CI_PROJECT_DIR}/ci/settings.xml"
 
-/**
- * A versatile hook for handling API calls using TanStack Query.
- * It dynamically uses `useQuery` for GET requests and `useMutation` for other methods.
- *
- * @param {string} key - The TanStack Query key. For mutations, this is used for invalidation.
- * @returns An object containing query/mutation state and functions.
- */
-export const useApi = (key) => {
-  const queryClient = useQueryClient();
+  # ── Kubernetes ────────────────────────────────────────────────────────────
+  K8S_NAMESPACE_DEV:      "dev"
+  K8S_NAMESPACE_UAT:      "uat"
+  K8S_NAMESPACE_PROD:     "prod"
+  HELM_CHART_DIR:         "helm/${APP_NAME}"
+  HELM_RELEASE_NAME:      "${APP_NAME}"
+  # KUBECONFIG_DEV / KUBECONFIG_UAT / KUBECONFIG_PROD → set as file-type CI/CD vars
 
-  // The core API call function
-  const apiFn = async ({ method, url, data, params }) => {
-    const response = await apiClient({
-      method,
-      url,
-      data,
-      params,
-    });
-    return response.data;
-  };
-
-  // Use useQuery for data fetching (GET requests)
-  const query = (url, options = {}) => {
-    return useQuery({
-      queryKey: [key, url, options.params],
-      queryFn: () => apiFn({ method: 'GET', url, params: options.params }),
-      ...options, // Spread any additional useQuery options (e.g., enabled, staleTime)
-    });
-  };
-
-  // Use useMutation for data modification (POST, PUT, DELETE, etc.)
-  const mutation = (options = {}) => {
-    return useMutation({
-      mutationFn: (variables) => apiFn(variables), // variables will be { method, url, data }
-      onSuccess: (data, variables, context) => {
-        // Invalidate the relevant query key to refetch data after a successful mutation
-        queryClient.invalidateQueries({ queryKey: [key] });
-        if (options.onSuccess) {
-          options.onSuccess(data, variables, context);
-        }
-      },
-      ...options, // Spread any additional useMutation options
-    });
-  };
-
-  return { query, mutation };
-};
+  # ── Docker build ──────────────────────────────────────────────────────────
+  DOCKER_BUILDKIT:        "1"
+  DOCKER_TLS_CERTDIR:     "/certs"
 
 
-3. Usage Example (UsersComponent.jsx)
-Here’s how you would use the useApi hook within a React component to fetch a list of users and add a new one.
-// src/components/UsersComponent.jsx
-import React, { useState } from 'react';
-import { useApi } from '../hooks/useApi';
-
-function UsersComponent() {
-  const [newUserName, setNewUserName] = useState('');
-  
-  // Initialize the hook with a query key for 'users'
-  const { query: useUsersQuery, mutation: useUserMutation } = useApi('users');
-
-  // 1. Fetching data with useQuery
-  const { data: users, isLoading, isError, error } = useUsersQuery('/users', {
-    // TanStack Query options can be passed here
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-
-  // 2. Mutating data with useMutation
-  const { mutate: createUser, isPending: isCreatingUser } = useUserMutation({
-    onSuccess: () => {
-      console.log('User created successfully!');
-      setNewUserName(''); // Clear the input on success
-    },
-    onError: (err) => {
-      console.error('Failed to create user:', err.message);
-    },
-  });
-
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    if (!newUserName.trim()) return;
-
-    // Call the mutate function with method, url, and data
-    createUser({
-      method: 'POST',
-      url: '/users',
-      data: { name: newUserName, role: 'developer' },
-    });
-  };
-
-  if (isLoading) return <div>Loading users...</div>;
-  if (isError) return <div>Error: {error.message}</div>;
-
-  return (
-    <div>
-      <h2>User List</h2>
-      <ul>
-        {users?.map((user) => (
-          <li key={user.id}>{user.name}</li>
-        ))}
-      </ul>
-
-      <hr />
-
-      <form onSubmit={handleAddUser}>
-        <h3>Add New User</h3>
-        <input
-          type="text"
-          value={newUserName}
-          onChange={(e) => setNewUserName(e.target.value)}
-          placeholder="Enter user name"
-          disabled={isCreatingUser}
-        />
-        <button type="submit" disabled={isCreatingUser}>
-          {isCreatingUser ? 'Adding...' : 'Add User'}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-export default UsersComponent;
-
-Design Rationale
- * Single Point of Entry: The useApi(key) hook provides a single, unified entry point (query and mutation functions) for all API interactions related to a specific data entity (e.g., 'users', 'products').
- * Intelligent Method Handling: It abstracts away the need to manually choose between useQuery and useMutation. You simply call query() for fetching and mutation() for changing data.
- * Automatic Cache Invalidation: The mutation part is pre-configured to automatically invalidate queries associated with its key (users in this case). When you create a new user, the user list automatically refetches, ensuring the UI is always up-to-date.
- * Centralized & Scalable: By using a centralized apiClient, you can easily manage authentication, base URLs, and error handling for your entire application.
- * Extensibility: You can easily pass any valid useQuery or useMutation options (like enabled, staleTime, onSettled, etc.) directly into the hook's methods, retaining the full power of TanStack Query.
+# ---------------------------------------------------------------------------
+# Pipeline Stages
+# ---------------------------------------------------------------------------
+stages:
+  - validate
+  - build
+  - test
+  - quality
+  - package
+  - publish
+  - deploy-dev
+  - deploy-uat
+  - deploy-prod
 
 
-const validateRow = (row, index) => {
-  const rowNumber = index + 2;
-  const rowErrors = [];
+# ---------------------------------------------------------------------------
+# Reusable Base Images (all pulled from Artifactory — no DockerHub)
+# ---------------------------------------------------------------------------
+.image_maven: &image_maven
+  image: "${JFROG_DOCKER_REGISTRY}/maven:3.9-eclipse-temurin-21"
 
-  const sanitize = (val) => (val ? val.toString().trim() : "");
+.image_docker: &image_docker
+  image: "${JFROG_DOCKER_REGISTRY}/docker:24-dind"
+  services:
+    - name: "${JFROG_DOCKER_REGISTRY}/docker:24-dind"
+      alias: docker
+  variables:
+    DOCKER_HOST: "tcp://docker:2376"
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
 
-  const {
-    UCN,
-    "Firm Registration No.": frnRaw,
-    "Firm Name": firmNameRaw,
-    "PAN NO.": panRaw,
-    "GSTIN NO.": gstinRaw,
-    "Address Line": addressRaw,
-    City: cityRaw,
-    "State Name": stateRaw,
-    "District Name": districtRaw,
-    "Pin Code": pinRaw,
-    "Primary Mobile No.": mobileRaw,
-    "Point of Contact": contactNameRaw,
-    "Point of Contact's Designation": contactDesigRaw,
-    "Point of Contact Email": contactEmailRaw,
-    "Type of Establishment": establishmentRaw,
-  } = row;
+.image_helm: &image_helm
+  image: "${JFROG_DOCKER_REGISTRY}/alpine/helm:3.14"
 
-  // Clean all fields once
-  const ucn = sanitize(UCN);
-  const frn = sanitize(frnRaw);
-  const firmName = sanitize(firmNameRaw);
-  const pan = sanitize(panRaw);
-  const gstin = sanitize(gstinRaw);
-  const address = sanitize(addressRaw);
-  const city = sanitize(cityRaw);
-  const state = sanitize(stateRaw);
-  const district = sanitize(districtRaw);
-  const pin = sanitize(pinRaw);
-  const mobile = sanitize(mobileRaw);
-  const contactName = sanitize(contactNameRaw);
-  const contactDesig = sanitize(contactDesigRaw);
-  const contactEmail = sanitize(contactEmailRaw);
-  const establishment = sanitize(establishmentRaw).toLowerCase();
 
-  // Utility validations
-  const isValidFrn = (val) => /^[a-z0-9/]+$/i.test(val);
-  
-  // Validations (with skips as per TODO)
-  if (ucn && !isOnlyNumbers(ucn))
-    rowErrors.push("UCN must contain numbers only");
+# ---------------------------------------------------------------------------
+# Cache — Maven local repository cached per branch
+# ---------------------------------------------------------------------------
+.maven_cache: &maven_cache
+  cache:
+    key: "maven-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - .m2/repository
+    policy: pull-push
 
-  if (frn && !isValidFrn(frn))
-    rowErrors.push("Firm Registration No. must be alphanumeric (allowing '/')");
 
-  if (!firmName) rowErrors.push("Firm Name is required");
+# ---------------------------------------------------------------------------
+# Before-script helpers
+# ---------------------------------------------------------------------------
+.docker_login: &docker_login
+  before_script:
+    - echo "Logging into JFrog Artifactory Docker Registry..."
+    - echo "$JFROG_PASSWORD" | docker login "$JFROG_DOCKER_REGISTRY"
+        --username "$JFROG_USER" --password-stdin
 
-  if (pan && !isPAN(pan))
-    rowErrors.push("Invalid PAN (alphanumeric only)");
+.kubectl_setup: &kubectl_setup
+  before_script:
+    - kubectl version --client
 
-  if (gstin && !isGSTIN(gstin))
-    rowErrors.push("Invalid GSTIN (alphanumeric only)");
 
-  if (!isAddress(address))
-    rowErrors.push("Address must contain only alphabets");
+# ---------------------------------------------------------------------------
+# STAGE: validate
+# Goal : Fail fast — check POM, code style, dependency security
+# ---------------------------------------------------------------------------
+validate:pom:
+  stage: validate
+  <<: *image_maven
+  <<: *maven_cache
+  script:
+    - echo "==> Validating POM structure"
+    - mvn $MAVEN_CLI_OPTS validate
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
 
-  if (!isAlpha(city)) rowErrors.push("City must contain only alphabets");
-  if (!isAlpha(state)) rowErrors.push("State must contain only alphabets");
-  if (!isAlpha(district))
-    rowErrors.push("District must contain only alphabets");
+validate:checkstyle:
+  stage: validate
+  <<: *image_maven
+  <<: *maven_cache
+  script:
+    - echo "==> Running Checkstyle"
+    - mvn $MAVEN_CLI_OPTS checkstyle:check
+  allow_failure: false
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
 
-  if (!isPinCode(pin)) rowErrors.push("Pin Code must be 6 digits");
+validate:dependency-check:
+  stage: validate
+  <<: *image_maven
+  <<: *maven_cache
+  script:
+    - echo "==> OWASP Dependency vulnerability check"
+    - mvn $MAVEN_CLI_OPTS org.owasp:dependency-check-maven:check
+        -DfailBuildOnCVSS=7
+        -DdataDirectory=${CI_PROJECT_DIR}/.owasp-data
+  cache:
+    key: "owasp-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - .owasp-data
+      - .m2/repository
+    policy: pull-push
+  artifacts:
+    when: always
+    paths:
+      - target/dependency-check-report.html
+    expire_in: 7 days
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
-  if (!isMobile(mobile)) rowErrors.push("Mobile number must be 10 digits");
 
-  if (!isAlpha(contactName))
-    rowErrors.push("Contact Name must contain only text");
+# ---------------------------------------------------------------------------
+# STAGE: build
+# Goal : Compile and produce the JAR (skip tests here — tests run next)
+# ---------------------------------------------------------------------------
+build:compile:
+  stage: build
+  <<: *image_maven
+  <<: *maven_cache
+  script:
+    - echo "==> Compiling application (version ${APP_VERSION})"
+    - mvn $MAVEN_CLI_OPTS
+        versions:set -DnewVersion=${APP_VERSION} -DgenerateBackupPoms=false
+    - mvn $MAVEN_CLI_OPTS package -DskipTests
+  artifacts:
+    name: "${APP_NAME}-${APP_VERSION}-jar"
+    paths:
+      - target/*.jar
+      - target/classes/
+    expire_in: 1 day
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
 
-  if (!isAlpha(contactDesig))
-    rowErrors.push("Designation must contain only text");
 
-  if (!contactEmail) rowErrors.push("Contact Email is required");
+# ---------------------------------------------------------------------------
+# STAGE: test
+# Goal : Unit tests + integration tests + coverage report
+# ---------------------------------------------------------------------------
+test:unit:
+  stage: test
+  <<: *image_maven
+  <<: *maven_cache
+  needs: ["build:compile"]
+  script:
+    - echo "==> Running Unit Tests"
+    - mvn $MAVEN_CLI_OPTS test
+        -Dspring.profiles.active=test
+  artifacts:
+    when: always
+    reports:
+      junit: target/surefire-reports/TEST-*.xml
+    paths:
+      - target/surefire-reports/
+      - target/site/jacoco/
+    expire_in: 7 days
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
 
-  const validEstablishments = ["partnership firm", "proprietorship firm", "other"];
-  if (!validEstablishments.includes(establishment))
-    rowErrors.push("Invalid Type of Establishment");
+test:integration:
+  stage: test
+  <<: *image_maven
+  <<: *maven_cache
+  needs: ["build:compile"]
+  script:
+    - echo "==> Running Integration Tests"
+    - mvn $MAVEN_CLI_OPTS verify -DskipUnitTests
+        -Dspring.profiles.active=integration-test
+  artifacts:
+    when: always
+    reports:
+      junit: target/failsafe-reports/TEST-*.xml
+    paths:
+      - target/failsafe-reports/
+    expire_in: 7 days
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
 
-  return {
-    rowNumber,
-    isValid: rowErrors.length === 0,
-    errors: rowErrors,
-  };
-};
+
+# ---------------------------------------------------------------------------
+# STAGE: quality
+# Goal : SonarQube static analysis (internal SonarQube instance)
+# ---------------------------------------------------------------------------
+quality:sonar:
+  stage: quality
+  <<: *image_maven
+  <<: *maven_cache
+  needs: ["test:unit"]
+  script:
+    - echo "==> SonarQube Analysis"
+    - mvn $MAVEN_CLI_OPTS sonar:sonar
+        -Dsonar.host.url=${SONAR_HOST_URL}
+        -Dsonar.login=${SONAR_TOKEN}
+        -Dsonar.projectKey=${CI_PROJECT_PATH_SLUG}
+        -Dsonar.projectName="${APP_NAME}"
+        -Dsonar.projectVersion="${APP_VERSION}"
+        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+        -Dsonar.qualitygate.wait=true
+  allow_failure: false
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  # SONAR_HOST_URL / SONAR_TOKEN → set as masked CI/CD variables
+
+
+# ---------------------------------------------------------------------------
+# STAGE: package
+# Goal : Build Docker image and push to JFrog Artifactory
+# ---------------------------------------------------------------------------
+package:docker:
+  stage: package
+  <<: *image_docker
+  <<: *docker_login
+  needs: ["build:compile", "test:unit"]
+  script:
+    - echo "==> Building Docker image ${DOCKER_IMAGE_FULL}"
+    - |
+      docker build \
+        --build-arg APP_VERSION="${APP_VERSION}" \
+        --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --build-arg GIT_COMMIT="${CI_COMMIT_SHA}" \
+        --label "git.commit=${CI_COMMIT_SHA}" \
+        --label "git.branch=${CI_COMMIT_REF_NAME}" \
+        --label "build.pipeline=${CI_PIPELINE_ID}" \
+        -t "${DOCKER_IMAGE_FULL}" \
+        -t "${DOCKER_IMAGE_LATEST}" \
+        -f Dockerfile .
+    - echo "==> Pushing image to JFrog Artifactory"
+    - docker push "${DOCKER_IMAGE_FULL}"
+    - docker push "${DOCKER_IMAGE_LATEST}"
+    - echo "IMAGE_TAG=${DOCKER_TAG}" >> build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+    expire_in: 1 day
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
+
+package:docker:mr:
+  stage: package
+  <<: *image_docker
+  <<: *docker_login
+  needs: ["build:compile", "test:unit"]
+  script:
+    - echo "==> Building Docker image for MR validation (no push)"
+    - |
+      docker build \
+        --build-arg APP_VERSION="${APP_VERSION}" \
+        -t "${DOCKER_IMAGE_FULL}" \
+        -f Dockerfile . --no-cache
+    - echo "==> Docker build OK (MR — image not pushed)"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+
+# ---------------------------------------------------------------------------
+# STAGE: publish
+# Goal : Publish JAR to JFrog Artifactory Maven repo
+# ---------------------------------------------------------------------------
+publish:maven-artifact:
+  stage: publish
+  <<: *image_maven
+  <<: *maven_cache
+  needs: ["package:docker"]
+  script:
+    - echo "==> Publishing JAR to JFrog Artifactory Maven repo"
+    - mvn $MAVEN_CLI_OPTS deploy -DskipTests
+        -DaltDeploymentRepository=central::default::${JFROG_MAVEN_REPO}
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+
+# ---------------------------------------------------------------------------
+# STAGE: deploy-dev
+# Goal : Helm deploy to DEV namespace (auto on develop branch)
+# ---------------------------------------------------------------------------
+deploy:dev:
+  stage: deploy-dev
+  <<: *image_helm
+  <<: *kubectl_setup
+  needs: ["package:docker"]
+  environment:
+    name: development
+    url: "https://${APP_NAME}.dev.sbi"
+    on_stop: teardown:dev
+  variables:
+    KUBECONFIG: "$KUBECONFIG_DEV"
+    K8S_NAMESPACE: "$K8S_NAMESPACE_DEV"
+  script:
+    - echo "==> Deploying to DEV namespace [${K8S_NAMESPACE}]"
+    - |
+      helm upgrade --install "${HELM_RELEASE_NAME}" "${HELM_CHART_DIR}" \
+        --namespace "${K8S_NAMESPACE}" \
+        --create-namespace \
+        --set image.repository="${DOCKER_IMAGE}" \
+        --set image.tag="${IMAGE_TAG}" \
+        --set image.pullSecrets[0].name="artifactory-registry-secret" \
+        --set replicaCount=1 \
+        --set spring.profiles.active=dev \
+        --values "${HELM_CHART_DIR}/values-dev.yaml" \
+        --timeout 5m \
+        --wait \
+        --atomic
+    - echo "==> Verifying rollout"
+    - kubectl rollout status deployment/"${HELM_RELEASE_NAME}"
+        -n "${K8S_NAMESPACE}" --timeout=3m
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: on_success
+
+teardown:dev:
+  stage: deploy-dev
+  <<: *image_helm
+  environment:
+    name: development
+    action: stop
+  variables:
+    KUBECONFIG: "$KUBECONFIG_DEV"
+    K8S_NAMESPACE: "$K8S_NAMESPACE_DEV"
+  script:
+    - helm uninstall "${HELM_RELEASE_NAME}" -n "${K8S_NAMESPACE}" || true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+      when: manual
+
+
+# ---------------------------------------------------------------------------
+# STAGE: deploy-uat
+# Goal : Helm deploy to UAT namespace (manual gate on develop/main)
+# ---------------------------------------------------------------------------
+deploy:uat:
+  stage: deploy-uat
+  <<: *image_helm
+  <<: *kubectl_setup
+  needs: ["deploy:dev"]
+  environment:
+    name: uat
+    url: "https://${APP_NAME}.uat.sbi"
+  variables:
+    KUBECONFIG: "$KUBECONFIG_UAT"
+    K8S_NAMESPACE: "$K8S_NAMESPACE_UAT"
+  script:
+    - echo "==> Deploying to UAT namespace [${K8S_NAMESPACE}]"
+    - |
+      helm upgrade --install "${HELM_RELEASE_NAME}" "${HELM_CHART_DIR}" \
+        --namespace "${K8S_NAMESPACE}" \
+        --create-namespace \
+        --set image.repository="${DOCKER_IMAGE}" \
+        --set image.tag="${IMAGE_TAG}" \
+        --set image.pullSecrets[0].name="artifactory-registry-secret" \
+        --set replicaCount=2 \
+        --set spring.profiles.active=uat \
+        --values "${HELM_CHART_DIR}/values-uat.yaml" \
+        --timeout 5m \
+        --wait \
+        --atomic
+    - kubectl rollout status deployment/"${HELM_RELEASE_NAME}"
+        -n "${K8S_NAMESPACE}" --timeout=3m
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"'
+      when: manual
+  allow_failure: false
+
+
+# ---------------------------------------------------------------------------
+# STAGE: deploy-prod
+# Goal : Helm deploy to PROD namespace (manual + protected branch only)
+# ---------------------------------------------------------------------------
+deploy:prod:
+  stage: deploy-prod
+  <<: *image_helm
+  <<: *kubectl_setup
+  needs: ["deploy:uat"]
+  environment:
+    name: production
+    url: "https://${APP_NAME}.sbi"
+  variables:
+    KUBECONFIG: "$KUBECONFIG_PROD"
+    K8S_NAMESPACE: "$K8S_NAMESPACE_PROD"
+  script:
+    - echo "==> Deploying to PRODUCTION namespace [${K8S_NAMESPACE}]"
+    - |
+      helm upgrade --install "${HELM_RELEASE_NAME}" "${HELM_CHART_DIR}" \
+        --namespace "${K8S_NAMESPACE}" \
+        --create-namespace \
+        --set image.repository="${DOCKER_IMAGE}" \
+        --set image.tag="${IMAGE_TAG}" \
+        --set image.pullSecrets[0].name="artifactory-registry-secret" \
+        --set replicaCount=3 \
+        --set spring.profiles.active=prod \
+        --values "${HELM_CHART_DIR}/values-prod.yaml" \
+        --timeout 10m \
+        --wait \
+        --atomic
+    - echo "==> Production rollout verification"
+    - kubectl rollout status deployment/"${HELM_RELEASE_NAME}"
+        -n "${K8S_NAMESPACE}" --timeout=5m
+    - echo "==> Running smoke tests against production"
+    - |
+      POD=$(kubectl get pod -n "${K8S_NAMESPACE}" \
+        -l app="${HELM_RELEASE_NAME}" \
+        -o jsonpath="{.items[0].metadata.name}")
+      kubectl exec -n "${K8S_NAMESPACE}" "$POD" -- \
+        wget -qO- http://localhost:8080/actuator/health | grep -q '"status":"UP"'
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+  allow_failure: false
+
+rollback:prod:
+  stage: deploy-prod
+  <<: *image_helm
+  <<: *kubectl_setup
+  needs: []
+  environment:
+    name: production
+  variables:
+    KUBECONFIG: "$KUBECONFIG_PROD"
+    K8S_NAMESPACE: "$K8S_NAMESPACE_PROD"
+  script:
+    - echo "==> Rolling back PRODUCTION Helm release by 1 revision"
+    - helm rollback "${HELM_RELEASE_NAME}" 0 -n "${K8S_NAMESPACE}" --wait
+    - kubectl rollout status deployment/"${HELM_RELEASE_NAME}"
+        -n "${K8S_NAMESPACE}" --timeout=3m
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+
+
+
+---------------------------
+
+
+
+# =============================================================================
+# Dockerfile — Spring Boot Application
+# Base images pulled from JFrog Artifactory (no DockerHub access)
+# Multi-stage: build stage kept separate to minimise final image size
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1 — Extract Spring Boot layers (requires Spring Boot 2.3+)
+# The JAR is already built by Maven in CI; we just explode the layers here.
+# ---------------------------------------------------------------------------
+ARG JFROG_DOCKER_REGISTRY=artifactory.sbi/docker-local
+ARG JRE_IMAGE=eclipse-temurin:21-jre-alpine
+
+FROM ${JFROG_DOCKER_REGISTRY}/${JRE_IMAGE} AS layer-extractor
+
+WORKDIR /extract
+
+# Copy the fat JAR produced by Maven
+COPY target/*.jar app.jar
+
+# Explode Spring Boot layered JAR
+RUN java -Djarmode=layertools -jar app.jar extract
+
+# ---------------------------------------------------------------------------
+# Stage 2 — Final minimal runtime image
+# ---------------------------------------------------------------------------
+FROM ${JFROG_DOCKER_REGISTRY}/${JRE_IMAGE}
+
+# Build-time metadata (injected by GitLab CI)
+ARG APP_VERSION=unknown
+ARG BUILD_DATE=unknown
+ARG GIT_COMMIT=unknown
+
+# OCI standard labels
+LABEL org.opencontainers.image.title="springboot-app" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.vendor="SBI" \
+      maintainer="your-team@sbi"
+
+# ── Security: run as non-root ──────────────────────────────────────────────
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+WORKDIR /app
+RUN chown appuser:appgroup /app
+
+# ── Copy Spring Boot layers in cache-friendly order ───────────────────────
+COPY --from=layer-extractor --chown=appuser:appgroup /extract/dependencies/          ./
+COPY --from=layer-extractor --chown=appuser:appgroup /extract/spring-boot-loader/    ./
+COPY --from=layer-extractor --chown=appuser:appgroup /extract/snapshot-dependencies/ ./
+COPY --from=layer-extractor --chown=appuser:appgroup /extract/application/           ./
+
+USER appuser
+
+# ── JVM tuning for containers (Java 11+) ──────────────────────────────────
+ENV JAVA_OPTS="\
+  -XX:+UseContainerSupport \
+  -XX:MaxRAMPercentage=75.0 \
+  -XX:+ExitOnOutOfMemoryError \
+  -Djava.security.egd=file:/dev/./urandom \
+  -Dspring.backgroundpreinitializer.ignore=true"
+
+# ── Spring profile injected at runtime via Helm values ────────────────────
+ENV SPRING_PROFILES_ACTIVE=default
+
+EXPOSE 8080
+
+# ── Healthcheck using Spring Boot Actuator ────────────────────────────────
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD wget -qO- http://localhost:8080/actuator/health || exit 1
+
+ENTRYPOINT ["sh", "-c", \
+  "exec java $JAVA_OPTS \
+   -Dspring.profiles.active=$SPRING_PROFILES_ACTIVE \
+   org.springframework.boot.loader.JarLauncher"]
+
+
+-----------------------------------
+
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ci/settings.xml
+  Maven settings for internal SBI environment.
+  All dependencies resolved exclusively via JFrog Artifactory.
+  Place this file at: <project-root>/ci/settings.xml
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
+                              https://maven.apache.org/xsd/settings-1.2.0.xsd">
+
+  <!-- ── Local repository inside the project dir (used by CI cache) ───── -->
+  <localRepository>${CI_PROJECT_DIR}/.m2/repository</localRepository>
+
+  <!-- ── JFrog Artifactory credentials ─────────────────────────────────── -->
+  <servers>
+    <server>
+      <id>central</id>
+      <username>${env.JFROG_USER}</username>
+      <password>${env.JFROG_PASSWORD}</password>
+    </server>
+    <server>
+      <id>snapshots</id>
+      <username>${env.JFROG_USER}</username>
+      <password>${env.JFROG_PASSWORD}</password>
+    </server>
+    <server>
+      <id>artifactory-releases</id>
+      <username>${env.JFROG_USER}</username>
+      <password>${env.JFROG_PASSWORD}</password>
+    </server>
+  </servers>
+
+  <!-- ── Mirror: redirect ALL external repos to Artifactory virtual repo ─ -->
+  <mirrors>
+    <mirror>
+      <id>artifactory-all</id>
+      <name>JFrog Artifactory — SBI Virtual Repo</name>
+      <!--
+        Use a single virtual repo in Artifactory that aggregates:
+          - libs-release-local
+          - libs-snapshot-local
+          - maven-central (remote proxy)
+          - jcenter (remote proxy)
+          - spring-releases (remote proxy)
+        Update URL to match your actual virtual repo name.
+      -->
+      <url>${env.JFROG_URL}/artifactory/maven-virtual</url>
+      <mirrorOf>*</mirrorOf>
+    </mirror>
+  </mirrors>
+
+  <!-- ── Active profile ─────────────────────────────────────────────────── -->
+  <activeProfiles>
+    <activeProfile>artifactory</activeProfile>
+  </activeProfiles>
+
+  <profiles>
+    <profile>
+      <id>artifactory</id>
+      <repositories>
+        <repository>
+          <id>central</id>
+          <url>${env.JFROG_URL}/artifactory/maven-virtual</url>
+          <releases>  <enabled>true</enabled>  </releases>
+          <snapshots> <enabled>false</enabled> </snapshots>
+        </repository>
+        <repository>
+          <id>snapshots</id>
+          <url>${env.JFROG_URL}/artifactory/libs-snapshot</url>
+          <releases>  <enabled>false</enabled> </releases>
+          <snapshots> <enabled>true</enabled>  </snapshots>
+        </repository>
+      </repositories>
+
+      <pluginRepositories>
+        <pluginRepository>
+          <id>central</id>
+          <url>${env.JFROG_URL}/artifactory/maven-virtual</url>
+          <releases>  <enabled>true</enabled>  </releases>
+          <snapshots> <enabled>false</enabled> </snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+
+</settings>
